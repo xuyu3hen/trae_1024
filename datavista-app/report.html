@@ -1,0 +1,1494 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>秒懂看板 · 数据智能报表生成器</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #070b14;
+    color: #e8eef7;
+    min-height: 100vh;
+  }
+
+  /* 顶部栏 */
+  .topbar {
+    height: 56px;
+    background: linear-gradient(180deg, #0f1623, #0a0f1a);
+    border-bottom: 1px solid #1f2a3d;
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    gap: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .brand {
+    font-weight: 700;
+    font-size: 18px;
+    background: linear-gradient(135deg, #fff, #22d3ee);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .brand .logo {
+    width: 28px; height: 28px;
+    border: 2px solid #22d3ee;
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    -webkit-text-fill-color: #22d3ee;
+  }
+  .topbar-right { margin-left: auto; display: flex; gap: 10px; }
+  .btn {
+    padding: 8px 18px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    border: 1px solid;
+    transition: all .2s;
+    font-family: inherit;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, #22d3ee, #0891b2);
+    border-color: transparent;
+    color: #062029;
+    font-weight: 600;
+  }
+  .btn-primary:hover { filter: brightness(1.1); }
+  .btn-ghost {
+    background: transparent;
+    border-color: #1f2a3d;
+    color: #8b97ad;
+  }
+  .btn-ghost:hover { border-color: #22d3ee; color: #e8eef7; }
+  .btn-accent {
+    background: rgba(245,158,11,.12);
+    border-color: rgba(245,158,11,.4);
+    color: #f59e0b;
+  }
+  .btn-accent:hover { background: rgba(245,158,11,.25); }
+
+  /* 布局 */
+  .layout {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    min-height: calc(100vh - 56px);
+  }
+
+  /* 左侧输入面板 */
+  .input-panel {
+    background: #0a0f1a;
+    border-right: 1px solid #1f2a3d;
+    padding: 20px;
+    overflow-y: auto;
+  }
+  .panel-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #22d3ee;
+    margin-bottom: 12px;
+    letter-spacing: .05em;
+  }
+  .mode-tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 14px;
+    background: #0f1623;
+    padding: 4px;
+    border-radius: 8px;
+  }
+  .mode-tab {
+    flex: 1;
+    padding: 8px 6px;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    color: #8b97ad;
+    cursor: pointer;
+    font-size: 12px;
+    font-family: inherit;
+    transition: all .2s;
+  }
+  .mode-tab.active {
+    background: rgba(34,211,238,.14);
+    color: #22d3ee;
+    font-weight: 600;
+  }
+  .model-settings {
+    margin-top: 10px;
+    font-size: 12px;
+    color: #8b97ad;
+    border-top: 1px solid #1f2a3d;
+    padding-top: 10px;
+  }
+  .model-settings summary {
+    cursor: pointer;
+    user-select: none;
+  }
+  .sample-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+  .sample-tag {
+    padding: 5px 12px;
+    background: rgba(34,211,238,.08);
+    border: 1px solid rgba(34,211,238,.25);
+    border-radius: 14px;
+    color: #22d3ee;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .sample-tag:hover { background: rgba(34,211,238,.18); }
+
+  .input-label {
+    font-size: 12px;
+    color: #8b97ad;
+    margin-bottom: 6px;
+    display: block;
+  }
+  textarea {
+    width: 100%;
+    min-height: 200px;
+    background: #0f1623;
+    border: 1px solid #1f2a3d;
+    border-radius: 8px;
+    color: #e8eef7;
+    padding: 12px;
+    font-family: 'Consolas', monospace;
+    font-size: 12px;
+    line-height: 1.6;
+    resize: vertical;
+  }
+  textarea:focus { outline: none; border-color: #22d3ee; }
+
+  .form-section {
+    margin-top: 18px;
+    padding-top: 18px;
+    border-top: 1px solid #1f2a3d;
+  }
+  .form-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .form-row input {
+    flex: 1;
+    background: #0f1623;
+    border: 1px solid #1f2a3d;
+    border-radius: 6px;
+    color: #e8eef7;
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+  .form-row input:focus { outline: none; border-color: #22d3ee; }
+  .form-row input::placeholder { color: #4a5568; }
+  .form-row .del-btn {
+    width: 32px;
+    background: transparent;
+    border: 1px solid #1f2a3d;
+    border-radius: 6px;
+    color: #f87171;
+    cursor: pointer;
+    font-size: 16px;
+  }
+
+  .options-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 16px;
+  }
+  .option-item label {
+    font-size: 12px;
+    color: #8b97ad;
+    display: block;
+    margin-bottom: 4px;
+  }
+  .option-item select {
+    width: 100%;
+    background: #0f1623;
+    border: 1px solid #1f2a3d;
+    border-radius: 6px;
+    color: #e8eef7;
+    padding: 7px 10px;
+    font-size: 13px;
+  }
+
+  .hint {
+    font-size: 11px;
+    color: #4a5568;
+    margin-top: 8px;
+    line-height: 1.6;
+  }
+
+  /* 右侧报表 */
+  .report-panel {
+    padding: 24px;
+    overflow-y: auto;
+  }
+  .report-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 60vh;
+    color: #4a5568;
+    text-align: center;
+  }
+  .report-empty .icon {
+    font-size: 64px;
+    margin-bottom: 16px;
+    opacity: .3;
+  }
+  .report-empty p { font-size: 14px; }
+
+  .report-content { display: none; }
+
+  .report-header {
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #1f2a3d;
+  }
+  .report-header h1 {
+    font-size: 22px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .report-header .meta {
+    font-size: 12px;
+    color: #8b97ad;
+    font-family: monospace;
+  }
+
+  /* 指标卡 */
+  .metrics-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .metric-card {
+    background: linear-gradient(180deg, #0f1623, #0a0f1a);
+    border: 1px solid #1f2a3d;
+    border-radius: 10px;
+    padding: 14px 16px;
+    position: relative;
+    overflow: hidden;
+  }
+  .metric-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 3px; height: 100%;
+    background: #22d3ee;
+  }
+  .metric-card .label {
+    font-size: 11px;
+    color: #8b97ad;
+    margin-bottom: 4px;
+  }
+  .metric-card .value {
+    font-family: 'Consolas', monospace;
+    font-size: 24px;
+    font-weight: 700;
+    color: #22d3ee;
+  }
+  .metric-card .sub {
+    font-size: 11px;
+    color: #8b97ad;
+    margin-top: 2px;
+  }
+  .metric-card .sub.up { color: #34d399; }
+  .metric-card .sub.down { color: #f87171; }
+
+  /* 图表区 */
+  .chart-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+  .chart-box {
+    background: #0f1623;
+    border: 1px solid #1f2a3d;
+    border-radius: 10px;
+    padding: 14px;
+  }
+  .chart-box .chart-title {
+    font-size: 12px;
+    color: #22d3ee;
+    margin-bottom: 8px;
+    font-weight: 600;
+  }
+  .chart-box .echart {
+    width: 100%;
+    height: 260px;
+  }
+
+  /* 数据表 */
+  .table-box {
+    background: #0f1623;
+    border: 1px solid #1f2a3d;
+    border-radius: 10px;
+    padding: 14px;
+    margin-bottom: 20px;
+    overflow-x: auto;
+  }
+  .table-box .chart-title {
+    font-size: 12px;
+    color: #22d3ee;
+    margin-bottom: 10px;
+    font-weight: 600;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+  th {
+    text-align: left;
+    padding: 8px 12px;
+    background: #161f30;
+    color: #22d3ee;
+    font-weight: 600;
+    border-bottom: 1px solid #1f2a3d;
+    white-space: nowrap;
+  }
+  td {
+    padding: 7px 12px;
+    border-bottom: 1px solid #1f2a3d;
+    color: #c5cddb;
+  }
+  tbody tr:hover { background: rgba(34,211,238,.04); }
+
+  /* 分析文案 */
+  .insight-box {
+    background: linear-gradient(135deg, rgba(34,211,238,.06), rgba(245,158,11,.04));
+    border: 1px solid rgba(34,211,238,.2);
+    border-radius: 10px;
+    padding: 18px 20px;
+    margin-bottom: 20px;
+  }
+  .insight-box .insight-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .insight-badge {
+    font-size: 10px;
+    font-family: monospace;
+    color: #f59e0b;
+    border: 1px solid rgba(245,158,11,.4);
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+  .insight-box .insight-text {
+    font-size: 14px;
+    line-height: 1.9;
+    color: #e8eef7;
+    max-height: 420px;
+    overflow-y: auto;
+    padding-right: 8px;
+  }
+  .insight-box .insight-text p {
+    margin-bottom: 14px;
+    text-align: justify;
+  }
+  .insight-box .insight-text p:last-child {
+    margin-bottom: 0;
+  }
+  .insight-box .insight-text strong {
+    color: #f59e0b;
+    font-weight: 600;
+  }
+  .insight-box .insight-text .buzz {
+    color: #22d3ee;
+    font-weight: 600;
+  }
+  .insight-box .insight-text .num {
+    color: #f59e0b;
+    font-family: monospace;
+    font-weight: 600;
+  }
+  .insight-box .regen-row {
+    margin-top: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 10px;
+    border-top: 1px solid rgba(31,42,61,.6);
+  }
+  .insight-box .meta {
+    font-size: 11px;
+    color: #8b97ad;
+    font-family: monospace;
+  }
+
+  /* 响应式 */
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; }
+    .chart-grid { grid-template-columns: 1fr; }
+  }
+
+  /* 滚动条 */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #1f2a3d; border-radius: 3px; }
+
+  .loading {
+    display: inline-block;
+    width: 14px; height: 14px;
+    border: 2px solid rgba(34,211,238,.3);
+    border-top-color: #22d3ee;
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><span class="logo">秒</span>秒懂看板<span style="font-size:11px;color:#8b97ad;font-weight:400;margin-left:10px;">让数据看起来就很厉害</span></div>
+  <div class="topbar-right">
+    <a class="btn btn-ghost" href="index.html" style="text-decoration:none;line-height:1.2;display:inline-flex;align-items:center;">🖥 返回大屏</a>
+    <button class="btn btn-ghost" id="clearBtn">清空</button>
+    <button class="btn btn-accent" id="sampleBtn">载入示例数据</button>
+    <button class="btn btn-primary" id="generateBtn">⚡ 生成报表</button>
+  </div>
+</div>
+
+<div class="layout">
+  <!-- 左侧：数据输入 -->
+  <div class="input-panel">
+    <div class="panel-title">① 数据输入</div>
+
+    <!-- 输入方式切换 -->
+    <div class="mode-tabs">
+      <button class="mode-tab active" data-mode="nl">💬 大白话描述</button>
+      <button class="mode-tab" data-mode="csv">📋 粘贴表格</button>
+    </div>
+
+    <!-- 大白话模式 -->
+    <div id="nlMode">
+      <label class="input-label">像平时说话一样描述数据，AI 自动整理成表格</label>
+      <textarea id="nlInput" style="min-height:150px;" placeholder="例如：&#10;1月销售额12.84万，2月15.62万，3月14.28万，环比增长12.5%；&#10;产品A销量1240件，产品B 890件，产品C最多2150件。"></textarea>
+      <button class="btn btn-primary" style="width:100%;margin:8px 0 6px;" id="nlParseBtn">✨ 识别并生成报表</button>
+      <div class="sample-row" style="margin-bottom:8px;">
+        <span class="sample-tag" data-nlsample="sales">试试：月度销售</span>
+        <span class="sample-tag" data-nlsample="multi">试试：多指标季度</span>
+      </div>
+      <details class="model-settings">
+        <summary>⚙️ 接入 AI 模型（可选，不填用内置识别）</summary>
+        <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px;">
+          <input id="apiBase" type="text" placeholder="接口地址，如 https://api.openai.com/v1" style="background:#0f1623;border:1px solid #1f2a3d;border-radius:6px;color:#e8eef7;padding:7px 10px;font-size:12px;">
+          <input id="apiKey" type="password" placeholder="API Key（仅保存在本地浏览器）" style="background:#0f1623;border:1px solid #1f2a3d;border-radius:6px;color:#e8eef7;padding:7px 10px;font-size:12px;">
+          <input id="apiModel" type="text" placeholder="模型名，如 gpt-4o-mini / deepseek-chat" style="background:#0f1623;border:1px solid #1f2a3d;border-radius:6px;color:#e8eef7;padding:7px 10px;font-size:12px;">
+        </div>
+        <p class="hint">兼容任意 OpenAI 格式接口（OpenAI / DeepSeek / 本地部署等）。Key 只存在你自己的浏览器里。</p>
+      </details>
+    </div>
+
+    <!-- 表格模式 -->
+    <div id="csvMode" style="display:none;">
+      <div class="sample-row">
+        <span class="sample-tag" data-sample="sales">销售数据</span>
+        <span class="sample-tag" data-sample="traffic">网站流量</span>
+        <span class="sample-tag" data-sample="product">产品评分</span>
+        <span class="sample-tag" data-sample="finance">财务指标</span>
+      </div>
+
+      <label class="input-label">粘贴 CSV 数据（第一行为表头）</label>
+      <textarea id="dataInput" placeholder="月份,销售额,订单量,客单价
+1月,128400,342,375
+2月,156200,418,374
+3月,142800,386,370
+..."></textarea>
+      <p class="hint">支持逗号/制表符/空格分隔。第一行自动识别为列名。</p>
+    </div>
+
+    <div class="form-section">
+      <div class="panel-title">② 快速录入（可选）</div>
+      <div id="formRows">
+        <div class="form-row">
+          <input type="text" class="f-key" placeholder="项目名称">
+          <input type="text" class="f-val" placeholder="数值">
+          <button class="del-btn" onclick="this.parentElement.remove()">×</button>
+        </div>
+      </div>
+      <button class="btn btn-ghost" style="width:100%;margin-top:8px;" onclick="addFormRow()">+ 添加一行</button>
+    </div>
+
+    <div class="form-section">
+      <div class="panel-title">③ 报表配置</div>
+      <div class="options-grid">
+        <div class="option-item">
+          <label>报表标题</label>
+          <input type="text" id="reportTitle" placeholder="自定义报表标题" style="width:100%;background:#0f1623;border:1px solid #1f2a3d;border-radius:6px;color:#e8eef7;padding:7px 10px;font-size:13px;">
+        </div>
+        <div class="option-item">
+          <label>分析风格</label>
+          <select id="insightStyle">
+            <option value="strategy">战略汇报型</option>
+            <option value="operation">运营分析型</option>
+            <option value="finance">财务分析型</option>
+            <option value="tech">技术监控型</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 右侧：报表输出 -->
+  <div class="report-panel">
+    <div class="report-empty" id="emptyState">
+      <div style="width:72px;height:72px;border:2px solid #22d3ee;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:34px;font-weight:700;color:#22d3ee;margin-bottom:18px;background:rgba(34,211,238,.08);">秒</div>
+      <p style="font-size:22px;font-weight:700;color:#e8eef7;background:linear-gradient(135deg,#fff,#22d3ee);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">秒懂看板</p>
+      <p style="margin-top:10px;font-size:14px;color:#c5cddb;max-width:420px;line-height:1.8;">让数据看起来就很厉害。机械仪表盘风格大屏自动生成，还附带一篇可以直接念的汇报稿。</p>
+      <p style="margin-top:14px;font-size:13px;color:#22d3ee;">👈 在左侧用大白话描述数据，或粘贴表格，一键生成</p>
+    </div>
+
+    <div class="report-content" id="reportContent">
+      <div class="report-header">
+        <h1 id="reportTitleText">数据分析报告</h1>
+        <div class="meta" id="reportMeta"></div>
+      </div>
+
+      <div class="metrics-row" id="metricsRow"></div>
+
+      <div class="chart-grid" id="chartGrid"></div>
+
+      <div class="insight-box">
+        <div class="insight-head">
+          <span class="insight-badge">AI 智能分析</span>
+          <span style="font-size:12px;color:#8b97ad;">基于输入数据自动生成</span>
+        </div>
+        <div class="insight-text" id="insightText"></div>
+        <div class="regen-row">
+          <span class="meta" id="insightMeta"></span>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-ghost" id="copyInsightBtn" style="padding:5px 14px;font-size:12px;">📋 复制汇报稿</button>
+            <button class="btn btn-accent" id="regenInsightBtn" style="padding:5px 14px;font-size:12px;">⚡ 重新生成</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="table-box">
+        <div class="chart-title">明细数据</div>
+        <div id="tableWrap"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="buzz.js"></script>
+<script>
+/* ============================================================
+   智视 DataVista · 数据智能报表生成器
+   ============================================================ */
+
+// ---------- 示例数据 ----------
+const SAMPLES = {
+  sales: `月份,销售额,订单量,客单价,同比增长
+1月,128400,342,375,12.5%
+2月,156200,418,374,18.3%
+3月,142800,386,370,8.7%
+4月,168900,452,374,22.1%
+5月,189300,501,378,15.6%
+6月,215600,568,380,28.4%
+7月,198700,523,380,19.8%
+8月,223400,589,379,24.6%
+9月,245800,642,383,31.2%
+10月,268900,698,385,27.9%
+11月,312400,801,390,35.6%
+12月,358700,912,393,41.2%`,
+  traffic: `日期,访问量,独立访客,跳出率,平均停留时长
+01,12450,8920,42.3%,3:24
+02,13820,9450,39.8%,3:45
+03,11230,7860,45.1%,2:58
+04,15670,10230,38.2%,4:12
+05,18920,12340,35.6%,4:38
+06,21340,14560,33.2%,5:02
+07,19870,13450,36.8%,4:45`,
+  product: `产品名称,销量,评分,库存,退货率
+产品A,1240,4.5,320,2.3%
+产品B,890,4.2,156,3.1%
+产品C,2150,4.8,480,1.8%
+产品D,670,3.9,89,4.5%
+产品E,1560,4.6,234,2.7%
+产品F,430,3.5,67,5.2%
+产品G,1890,4.7,312,2.1%`,
+  finance: `指标,Q1,Q2,Q3,Q4
+营收,1280万,1450万,1620万,1890万
+成本,860万,920万,980万,1100万
+毛利,420万,530万,640万,790万
+净利润,180万,240万,310万,420万
+现金流,320万,410万,520万,680万`,
+};
+
+// ---------- 黑话词库 ----------
+const BUZZWORDS = {
+  strategy: {
+    n: ['势能','抓手','闭环','颗粒度','组合拳','底座','生态','链路','维度','引擎','矩阵','纵深'],
+    v: ['对齐','赋能','沉淀','拆解','联动','协同','聚焦','夯实','打通','重构','撬动','盘活'],
+    a: ['结构性','非对称','边际','全局','核心','关键','底层','顶层','横向','纵向','系统性','全局性'],
+  },
+  operation: {
+    n: ['渗透系数','转化链路','留存漏斗','LTV','ARPU','复购','触达','激活','转化','召回','拉新','促活'],
+    v: ['提升','优化','拉升','撬动','放大','强化','巩固','拓展','激活','盘活','下沉','上探'],
+    a: ['显著','持续','稳定','良性','健康','高效','精准','深度','全面','重点','稳步','有序'],
+  },
+  finance: {
+    n: ['营收结构','毛利空间','现金流','ROI','净利率','资产负债率','周转率','杠杆率','边际贡献','成本结构'],
+    v: ['增长','优化','压缩','释放','提升','改善','增厚','加固','压降','提效'],
+    a: ['稳健','强劲','韧性','弹性','高质量','可持续','结构性','边际','同比','环比'],
+  },
+  tech: {
+    n: ['吞吐量','并发量','延迟','可用性','SLA','容灾','QPS','TPS','吞吐','容量','水位','峰值'],
+    v: ['扩容','降级','熔断','隔离','同步','异步','缓存','分片','冗余','调优','压测','巡检'],
+    a: ['高可用','分布式','弹性','实时','毫秒级','高并发','低延迟','稳定','可靠','健壮'],
+  },
+};
+
+// ---------- 工具函数 ----------
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+function parseCSV(text) {
+  const lines = text.trim().split(/\r?\n/).filter(l => l.trim());
+  if (lines.length < 2) return null;
+  // 自动识别分隔符
+  const firstLine = lines[0];
+  let sep = ',';
+  if (firstLine.includes('\t')) sep = '\t';
+  else if (!firstLine.includes(',') && firstLine.includes(/\s+/)) sep = /\s+/;
+  const sepRegex = sep instanceof RegExp ? sep : new RegExp(sep);
+  const headers = firstLine.split(sepRegex).map(h => h.trim());
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const cells = lines[i].split(sepRegex).map(c => c.trim());
+    if (cells.length === headers.length) {
+      const obj = {};
+      headers.forEach((h, idx) => obj[h] = cells[idx]);
+      rows.push(obj);
+    }
+  }
+  return { headers, rows };
+}
+
+function parseNum(str) {
+  if (str === undefined || str === null) return null;
+  str = String(str).trim();
+  // 去掉百分号
+  const isPct = str.endsWith('%');
+  let s = str.replace(/[%万亿,]/g, '');
+  let n = parseFloat(s);
+  if (isNaN(n)) return null;
+  if (isPct) n = n; // 百分比保持原值
+  if (str.includes('万')) n *= 10000;
+  if (str.includes('亿')) n *= 100000000;
+  return n;
+}
+
+// 严格判断单元格是否为数值（允许：纯数字、千分位、%结尾、万/亿结尾；不允许"1月""3:24"等）
+function isNumericCell(str) {
+  if (str === undefined || str === null) return false;
+  let s = String(str).trim();
+  if (!s) return false;
+  s = s.replace(/,/g, '').replace(/%$/, '').replace(/(万|亿)$/, '');
+  return /^-?\d+(\.\d+)?$/.test(s);
+}
+
+function detectNumericCols(data) {
+  if (!data || !data.rows.length) return [];
+  const numeric = [];
+  data.headers.forEach(h => {
+    const valid = data.rows.filter(r => isNumericCell(r[h]));
+    if (valid.length / data.rows.length >= 0.7) {
+      numeric.push(h);
+    }
+  });
+  return numeric;
+}
+
+// 百分比类列：列名提示，或所有取值都落在 0~100
+function isPercentCol(colName, colVals) {
+  if (/率|比|占|%/i.test(colName)) return true;
+  const v = colVals.filter(x => x !== null);
+  return v.length > 0 && v.every(x => x >= -100 && x <= 100);
+}
+
+// 是否需要独立右轴：百分比类，或量级远小于主列（如 客单价/订单量 vs 总销售额）
+function needsRightAxis(colName, colVals, mainVals) {
+  if (isPercentCol(colName, colVals)) return true;
+  const colMax = Math.max(...colVals.filter(v => v !== null));
+  const mainMax = Math.max(...mainVals.filter(v => v !== null));
+  return isFinite(colMax) && isFinite(mainMax) && mainMax > 0 && colMax < mainMax * 0.02;
+}
+
+function calcStats(vals) {
+  const nums = vals.filter(v => v !== null && !isNaN(v));
+  if (!nums.length) return null;
+  const sum = nums.reduce((a, b) => a + b, 0);
+  const avg = sum / nums.length;
+  const max = Math.max(...nums);
+  const min = Math.min(...nums);
+  const growth = nums.length > 1 ? ((nums[nums.length-1] - nums[0]) / Math.abs(nums[0] || 1) * 100) : 0;
+  return { sum, avg, max, min, count: nums.length, growth };
+}
+
+function fmtNum(n, decimals = 1) {
+  if (n === null || isNaN(n)) return '--';
+  const abs = Math.abs(n);
+  if (abs >= 1e8) return (n/1e8).toFixed(2) + '亿';
+  if (abs >= 1e4) return (n/1e4).toFixed(2) + '万';
+  if (Number.isInteger(n)) return n.toLocaleString();
+  return n.toFixed(decimals);
+}
+
+// ---------- 生成分析文案 ----------
+// 工具：把黑话词包装成高亮 span
+function buzz(bw, type) { return `<span class="buzz">${pick(bw[type])}</span>`; }
+
+function generateInsight(data, style) {
+  const bw = BUZZWORDS[style];
+  const numCols = detectNumericCols(data);
+  if (!numCols.length) {
+    return '<p>数据中未检测到可量化的数值维度，建议补充数值型字段以获取更精准的态势分析。</p>';
+  }
+
+  const mainCol = numCols[0];
+  const vals = data.rows.map(r => parseNum(r[mainCol]));
+  const stats = calcStats(vals);
+  if (!stats) return '<p>数据解析异常，请检查输入格式。</p>';
+
+  const maxIdx = vals.indexOf(stats.max);
+  const minIdx = vals.indexOf(stats.min);
+  const maxLabel = data.rows[maxIdx]?.[data.headers[0]] || '峰值';
+  const minLabel = data.rows[minIdx]?.[data.headers[0]] || '谷值';
+  const catCol = data.headers[0];
+  const firstLabel = data.rows[0]?.[catCol] || '首期';
+  const lastLabel = data.rows[data.rows.length-1]?.[catCol] || '末期';
+
+  // 计算波动情况
+  const variance = vals.filter(v=>v!==null).reduce((s,v)=>s+Math.pow(v-stats.avg,2),0)/stats.count;
+  const stdDev = Math.sqrt(variance);
+  const cv = (stdDev / Math.abs(stats.avg||1)) * 100; // 变异系数
+  const stable = cv < 15;
+
+  // 第二段：第二数值列联动（如果有）
+  let secondCol = numCols[1];
+  let secondStats = null;
+  let secondVals = null;
+  if (secondCol) {
+    secondVals = data.rows.map(r => parseNum(r[secondCol]));
+    secondStats = calcStats(secondVals);
+  }
+
+  // ===== 多段落汇报稿 =====
+  const paragraphs = [];
+
+  // 第一段：开场总览
+  paragraphs.push(`
+    <p><strong>各位领导、同事，下面我汇报一下本次${catCol}维度的数据分析情况。</strong></p>
+    <p>从整体来看，${mainCol}在本周期内呈现出${buzz(bw,'a')}的运行态势，累计${mainCol}达到<span class="num">${fmtNum(stats.sum)}</span>，平均水平为<span class="num">${fmtNum(stats.avg)}</span>。整体${buzz(bw,'n')}处于${buzz(bw,'a')}区间，${buzz(bw,'n')}与${buzz(bw,'n')}的协同效应初步显现，为后续${buzz(bw,'v')}${buzz(bw,'n')}奠定了${buzz(bw,'a')}基础。</p>
+  `);
+
+  // 第二段：极值分析
+  paragraphs.push(`
+    <p><strong>首先看关键节点表现。</strong>在${data.rows.length}个${catCol}中，${maxLabel}以<span class="num">${fmtNum(stats.max)}</span>的${mainCol}领跑全局，表现出较强的${buzz(bw,'n')}势能；而${minLabel}的${mainCol}为<span class="num">${fmtNum(stats.min)}</span>，相对处于${buzz(bw,'a')}位置。峰谷之间的${buzz(bw,'n')}差达到<span class="num">${fmtNum(stats.max - stats.min)}</span>，说明各${catCol}之间存在一定的${buzz(bw,'a')}差异，这种${buzz(bw,'n')}分化既有结构性原因，也有阶段性因素，需要我们${buzz(bw,'v')}看待。</p>
+  `);
+
+  // 第三段：趋势与增长
+  const trendWord = stats.growth >= 0 ? '增长' : '回落';
+  paragraphs.push(`
+    <p><strong>其次看发展趋势。</strong>从${firstLabel}到${lastLabel}，${mainCol}整体${trendWord}了<span class="num">${Math.abs(stats.growth).toFixed(1)}%</span>，${stats.growth >= 0 ? '保持了较好的上行通道' : '出现了一定的回调压力'}。这一变化背后，是${buzz(bw,'n')}与${buzz(bw,'n')}共同作用的结果。我们注意到，${buzz(bw,'a')}${buzz(bw,'n')}在中期阶段有所${pick(['收敛','放大','波动','企稳'])}，反映出${buzz(bw,'n')}正在经历${buzz(bw,'a')}调整，这与整体${buzz(bw,'n')}节奏是吻合的。</p>
+  `);
+
+  // 第四段：稳定性分析
+  const stableWord = stable ? '整体较为平稳' : '存在一定波动';
+  paragraphs.push(`
+    <p><strong>再看运行质量。</strong>${mainCol}的离散系数为<span class="num">${cv.toFixed(1)}%</span>，说明数据${stableWord}。标准差为<span class="num">${fmtNum(stdDev)}</span>，大部分${catCol}的${mainCol}围绕均值${fmtNum(stats.avg)}在${buzz(bw,'a')}范围内波动，没有出现明显的异常${buzz(bw,'n')}。这表明当前${buzz(bw,'n')}体系具备一定的${buzz(bw,'a')}性，${buzz(bw,'n')}能力处于可控状态。</p>
+  `);
+
+  // 第五段：多维度联动（如果有第二列）
+  if (secondCol && secondStats) {
+    paragraphs.push(`
+      <p><strong>最后看多维联动。</strong>我们把${mainCol}和${secondCol}放在一起看，会发现两者之间存在一定的${buzz(bw,'a')}关联。${secondCol}累计为<span class="num">${fmtNum(secondStats.sum)}</span>，均值<span class="num">${fmtNum(secondStats.avg)}</span>，与${mainCol}的变化节奏${pick(['基本同步','存在滞后','呈现互补','大体一致'])}。这说明${buzz(bw,'n')}不是孤立运行的，而是与${buzz(bw,'n')}形成了${buzz(bw,'a')}的${buzz(bw,'n')}关系，需要我们从${buzz(bw,'n')}层面去${buzz(bw,'v')}和${buzz(bw,'v')}。</p>
+    `);
+  }
+
+  // 第六段：对策建议
+  paragraphs.push(`
+    <p><strong>基于以上分析，提出以下几点建议。</strong>第一，要进一步${buzz(bw,'v')}${minLabel}等相对薄弱${catCol}的${buzz(bw,'n')}，${buzz(bw,'v')}其${buzz(bw,'n')}短板，推动整体${buzz(bw,'n')}均衡发展。第二，要${buzz(bw,'v')}${maxLabel}的成功经验，形成可${buzz(bw,'v')}的${buzz(bw,'n')}机制，向其他${catCol}${buzz(bw,'v')}。第三，要持续${buzz(bw,'v')}${buzz(bw,'n')}监控，建立${buzz(bw,'a')}的${buzz(bw,'n')}预警体系，确保${buzz(bw,'n')}始终运行在${buzz(bw,'a')}轨道上。</p>
+  `);
+
+  // 第七段：收尾
+  paragraphs.push(`
+    <p><strong>总体而言</strong>，当前${catCol}维度的${mainCol}${buzz(bw,'a')}向好，${buzz(bw,'n')}基础扎实，${buzz(bw,'n')}空间充足。只要我们${buzz(bw,'v')}${buzz(bw,'n')}、${buzz(bw,'v')}${buzz(bw,'n')}，就一定能推动${mainCol}再上新台阶。以上就是我的汇报，谢谢大家。</p>
+  `);
+
+  return paragraphs.join('');
+}
+
+// ---------- 渲染 ----------
+let currentData = null;
+let currentStyle = 'strategy';
+let chartInstances = [];
+
+function renderReport() {
+  if (!currentData) return;
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('reportContent').style.display = 'block';
+
+  // 标题
+  const title = document.getElementById('reportTitle').value.trim() || `${currentData.headers[0]}数据分析报告`;
+  document.getElementById('reportTitleText').textContent = title;
+  document.getElementById('reportMeta').textContent =
+    `数据来源：用户上传 · 共 ${currentData.rows.length} 条记录 · ${currentData.headers.length} 个字段 · 生成时间 ${new Date().toLocaleString()}`;
+
+  // 指标卡
+  renderMetrics();
+  // 图表
+  renderCharts();
+  // 分析文案
+  renderInsight();
+  // 表格
+  renderTable();
+}
+
+function renderMetrics() {
+  const row = document.getElementById('metricsRow');
+  row.innerHTML = '';
+  const numCols = detectNumericCols(currentData);
+  numCols.slice(0, 4).forEach(col => {
+    const vals = currentData.rows.map(r => parseNum(r[col]));
+    const stats = calcStats(vals);
+    if (!stats) return;
+    const ratio = isPercentCol(col, vals);
+    const growthStr = stats.growth >= 0 ? `▲ ${stats.growth.toFixed(1)}%` : `▼ ${Math.abs(stats.growth).toFixed(1)}%`;
+    const growthCls = stats.growth >= 0 ? 'up' : 'down';
+    const card = document.createElement('div');
+    card.className = 'metric-card';
+    if (ratio) {
+      card.innerHTML = `
+        <div class="label">${col} · 均值</div>
+        <div class="value">${stats.avg.toFixed(1)}<span style="font-size:13px;color:#8b97ad">${/率|比|占|%/.test(col) ? '%' : ''}</span></div>
+        <div class="sub">区间 ${fmtNum(stats.min)} ~ ${fmtNum(stats.max)}</div>
+        <div class="sub ${growthCls}">${growthStr} 较首项</div>
+      `;
+    } else {
+      card.innerHTML = `
+        <div class="label">${col} · 总计</div>
+        <div class="value">${fmtNum(stats.sum)}</div>
+        <div class="sub">均值 ${fmtNum(stats.avg)} · 峰谷差 ${fmtNum(stats.max - stats.min)}</div>
+        <div class="sub ${growthCls}">${growthStr} 较首项</div>
+      `;
+    }
+    row.appendChild(card);
+  });
+  if (!numCols.length) {
+    row.innerHTML = '<div class="metric-card"><div class="label">提示</div><div class="value" style="font-size:16px;">未检测到数值列</div></div>';
+  }
+}
+
+function renderCharts() {
+  const grid = document.getElementById('chartGrid');
+  grid.innerHTML = '';
+  chartInstances.forEach(c => c.dispose());
+  chartInstances = [];
+
+  const numCols = detectNumericCols(currentData);
+  if (!numCols.length) {
+    grid.innerHTML = '<div class="chart-box"><div class="chart-title">图表</div><p style="color:#8b97ad;font-size:13px;">数据中无数值列，无法生成图表</p></div>';
+    return;
+  }
+
+  const catCol = currentData.headers[0];
+  const categories = currentData.rows.map(r => r[catCol]);
+  const mainVals = currentData.rows.map(r => parseNum(r[numCols[0]]));
+
+  // 图表1：趋势分析（量级不同的指标走右轴）
+  const chart1Cols = numCols.slice(0, 2).filter(c => c !== '增长率');
+  const chart1RightVals = chart1Cols[1] ? currentData.rows.map(r => parseNum(r[chart1Cols[1]])) : [];
+  const c1RightIsPct = chart1Cols[1] ? isPercentCol(chart1Cols[1], chart1RightVals) : false;
+  const c1HasRight = chart1Cols.length === 2 && needsRightAxis(chart1Cols[1], chart1RightVals, mainVals);
+  const box1 = document.createElement('div');
+  box1.className = 'chart-box';
+  box1.innerHTML = `<div class="chart-title">${chart1Cols.join(' · ')} · 趋势分析</div><div class="echart" id="chart1"></div>`;
+  grid.appendChild(box1);
+
+  const c1 = echarts.init(document.getElementById('chart1'), 'dark');
+  c1.setOption({
+    backgroundColor: 'transparent',
+    tooltip: { trigger: 'axis' },
+    legend: { textStyle: { color: '#8b97ad', fontSize: 10 }, top: 0 },
+    grid: { left: 55, right: c1HasRight ? 50 : 20, top: 34, bottom: 40 },
+    xAxis: { type: 'category', data: categories, axisLabel: { color: '#8b97ad', rotate: categories.length > 8 ? 30 : 0 } },
+    yAxis: c1HasRight
+      ? [
+          { type: 'value', name: chart1Cols[0], nameTextStyle: { color: '#22d3ee', fontSize: 10 }, axisLabel: { color: '#8b97ad' }, splitLine: { lineStyle: { color: '#1f2a3d' } } },
+          { type: 'value', name: chart1Cols[1], nameTextStyle: { color: '#f59e0b', fontSize: 10 }, axisLabel: { color: '#f59e0b', formatter: c1RightIsPct ? '{value}%' : '{value}' }, splitLine: { show: false } },
+        ]
+      : { type: 'value', axisLabel: { color: '#8b97ad' }, splitLine: { lineStyle: { color: '#1f2a3d' } } },
+    series: chart1Cols.map((col, i) => ({
+      name: col,
+      type: i === 0 ? 'bar' : (c1HasRight ? 'line' : 'line'),
+      yAxisIndex: i === 1 && c1HasRight ? 1 : 0,
+      data: currentData.rows.map(r => parseNum(r[col])),
+      smooth: true,
+      itemStyle: { color: i === 0 ? '#22d3ee' : '#f59e0b' },
+      areaStyle: i === 0 && !c1HasRight ? { color: 'rgba(34,211,238,0.15)' } : undefined,
+      barMaxWidth: 28,
+    })),
+  });
+  chartInstances.push(c1);
+
+  // 图表2：饼图（取第一个数值列）
+  const box2 = document.createElement('div');
+  box2.className = 'chart-box';
+  box2.innerHTML = `<div class="chart-title">${numCols[0]} · 占比分布</div><div class="echart" id="chart2"></div>`;
+  grid.appendChild(box2);
+
+  const c2 = echarts.init(document.getElementById('chart2'), 'dark');
+  const pieData = currentData.rows.map(r => ({ name: r[catCol], value: parseNum(r[numCols[0]]) || 0 }));
+  c2.setOption({
+    backgroundColor: 'transparent',
+    tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
+    legend: { type: 'scroll', bottom: 0, textStyle: { color: '#8b97ad', fontSize: 10 } },
+    series: [{
+      type: 'pie',
+      radius: ['40%', '70%'],
+      center: ['50%', '45%'],
+      data: pieData,
+      itemStyle: { borderColor: '#0f1623', borderWidth: 2 },
+      label: { color: '#c5cddb', fontSize: 10 },
+      color: ['#22d3ee', '#34d399', '#f59e0b', '#a78bfa', '#f87171', '#60a5fa', '#fb7185', '#4ade80'],
+    }],
+  });
+  chartInstances.push(c2);
+
+  // 如果有多个数值列，再加一个对比柱状图
+  if (numCols.length >= 2) {
+    const box3 = document.createElement('div');
+    box3.className = 'chart-box';
+    box3.style.gridColumn = '1 / -1';
+    box3.innerHTML = `<div class="chart-title">多维度对比分析</div><div class="echart" id="chart3"></div>`;
+    grid.appendChild(box3);
+
+    const c3 = echarts.init(document.getElementById('chart3'), 'dark');
+    const c3RightCols = numCols.filter(c => needsRightAxis(c, currentData.rows.map(r => parseNum(r[c])), mainVals));
+    const c3RightPct = c3RightCols.filter(c => isPercentCol(c, currentData.rows.map(r => parseNum(r[c]))));
+    const c3HasRight = c3RightCols.length > 0;
+    const c3AllRightPct = c3RightCols.length > 0 && c3RightPct.length === c3RightCols.length;
+    c3.setOption({
+      backgroundColor: 'transparent',
+      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+      legend: { textStyle: { color: '#8b97ad' }, top: 0 },
+      grid: { left: 55, right: c3HasRight ? 55 : 20, top: 40, bottom: 40 },
+      xAxis: { type: 'category', data: categories, axisLabel: { color: '#8b97ad' } },
+      yAxis: c3HasRight
+        ? [
+            { type: 'value', axisLabel: { color: '#8b97ad' }, splitLine: { lineStyle: { color: '#1f2a3d' } } },
+            { type: 'value', axisLabel: { color: '#f59e0b', formatter: c3AllRightPct ? '{value}%' : '{value}' }, splitLine: { show: false } },
+          ]
+        : { type: 'value', axisLabel: { color: '#8b97ad' }, splitLine: { lineStyle: { color: '#1f2a3d' } } },
+      series: numCols.map(col => {
+        const isRatio = c3RightCols.includes(col);
+        return {
+          name: col,
+          type: isRatio ? 'line' : 'bar',
+          yAxisIndex: isRatio ? 1 : 0,
+          smooth: true,
+          data: currentData.rows.map(r => parseNum(r[col])),
+          itemStyle: { borderRadius: isRatio ? 0 : [4, 4, 0, 0] },
+          barMaxWidth: 30,
+        };
+      }),
+      color: ['#22d3ee', '#f59e0b', '#34d399', '#a78bfa', '#f87171', '#60a5fa'],
+    });
+    chartInstances.push(c3);
+  }
+
+  window.addEventListener('resize', () => chartInstances.forEach(c => c.resize()));
+}
+
+function renderInsight() {
+  const box = document.getElementById('insightText');
+  const meta = document.getElementById('insightMeta');
+  box.innerHTML = '<span class="loading"></span> 正在分析数据...';
+  setTimeout(() => {
+    box.innerHTML = generateInsight(currentData, currentStyle);
+    meta.textContent = `分析引擎 v1.0 · 数据维度 ${currentData.headers.length} · 置信度 ${(Math.random()*15+82).toFixed(1)}%`;
+  }, 600);
+}
+
+function renderTable() {
+  const wrap = document.getElementById('tableWrap');
+  let html = '<table><thead><tr>';
+  currentData.headers.forEach(h => html += `<th>${h}</th>`);
+  html += '</tr></thead><tbody>';
+  currentData.rows.forEach(r => {
+    html += '<tr>';
+    currentData.headers.forEach(h => html += `<td>${r[h] ?? ''}</td>`);
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
+}
+
+// ---------- 事件 ----------
+document.getElementById('generateBtn').addEventListener('click', () => {
+  // 优先用 textarea 数据，其次用表单
+  const text = document.getElementById('dataInput').value.trim();
+  let data = null;
+  if (text) {
+    data = parseCSV(text);
+  } else {
+    // 从表单构建
+    const rows = [];
+    document.querySelectorAll('#formRows .form-row').forEach(r => {
+      const k = r.querySelector('.f-key').value.trim();
+      const v = r.querySelector('.f-val').value.trim();
+      if (k && v) rows.push({ k, v });
+    });
+    if (rows.length) {
+      data = { headers: ['项目', '数值'], rows };
+    }
+  }
+  if (!data || !data.rows.length) {
+    alert('请先输入数据！可以粘贴 CSV 或使用快速录入，也可点击右上角「载入示例数据」。');
+    return;
+  }
+  currentData = data;
+  currentStyle = document.getElementById('insightStyle').value;
+  renderReport();
+  if (window.Buzz) { Buzz.nod(2200); Buzz.say('报表已生成，汇报稿可以直接念。'); }
+  // 滚动到报表
+  document.querySelector('.report-panel').scrollTo({ top: 0, behavior: 'smooth' });
+});
+
+// ============================================================
+// 大白话 → 结构化数据
+// ============================================================
+const NL_SAMPLES = {
+  sales: '今年上半年我们卖得不错：1月销售额12.84万、订单342单；2月销售额15.62万、订单418单；3月14.28万、订单386单；4月16.89万、订单452单；5月18.93万、订单501单；6月冲到21.56万、订单568单，同比增长28.4%。',
+  multi: 'Q1营收1280万、成本860万、净利润180万；Q2营收1450万、成本920万、净利润240万；Q3营收1620万、成本980万、净利润310万；Q4营收1890万、成本1100万、净利润420万。'
+};
+
+// 指标关键词 → 列名（顺序即优先级，具体的放前面）
+const METRIC_RULES = [
+  [/净利润/, '净利润'], [/净利率/, '净利率'],
+  [/毛利率/, '毛利率'], [/毛利/, '毛利'],
+  [/退货率|退款率/, '退货率'], [/跳出率/, '跳出率'], [/转化率/, '转化率'],
+  [/利润/, '利润'],
+  [/营收/, '营收'],
+  [/销售额|营业额|收入/, '销售额'],
+  [/客单价|单价/, '客单价'],
+  [/订单/, '订单量'],
+  [/销量|出货/, '销量'],
+  [/成本/, '成本'],
+  [/访问量|流量/, '访问量'],
+  [/访客|独立用户|用户数|人数/, '用户数'],
+  [/库存/, '库存'],
+  [/评分|得分/, '评分'],
+];
+
+const LABEL_PATTERNS = [
+  { re: /(\d{4}\s*年\s*)?(\d{1,2})\s*月/g, fmt: m => m[2] + '月', col: '月份' },
+  { re: /Q\s*([1-4])/gi, fmt: m => 'Q' + m[1], col: '季度' },
+  { re: /第\s*([一二三四1-4])\s*季度/g, fmt: m => 'Q' + ({'一':1,'二':2,'三':3,'四':4}[m[1]] || m[1]), col: '季度' },
+  { re: /(\d{1,2})\s*[日号]/g, fmt: m => m[1] + '日', col: '日期' },
+  { re: /第\s*(\d+)\s*周/g, fmt: m => '第' + m[1] + '周', col: '周次' },
+];
+
+function findMetricName(beforeText) {
+  // 在数字前面的文字里找指标词：匹配结束位置越靠近数字越好；结束位置相同则更长（起点更早）的优先
+  let best = null, bestEnd = -1, bestStart = 1e9;
+  for (const [re, name] of METRIC_RULES) {
+    const ms = [...beforeText.matchAll(new RegExp(re.source, 'g'))];
+    if (!ms.length) continue;
+    const m = ms[ms.length - 1];
+    const start = m.index, end = start + m[0].length;
+    if (end > bestEnd || (end === bestEnd && start < bestStart)) {
+      bestEnd = end; bestStart = start; best = name;
+    }
+  }
+  return best;
+}
+
+// 从一个片段里按出现顺序抽取数字条目：{ name: 列名或null, val, pos }
+function extractEntries(seg) {
+  const entries = [];
+  let s = seg;
+
+  // 1) 增长/下降百分比（命名条目）
+  const growthRe = /(同比|环比)?(增长|增加|提升|上涨|上升|下降|减少|下跌|回落|降低)\s*([\d.]+)\s*%/g;
+  let gm;
+  while ((gm = growthRe.exec(s))) {
+    const v = parseFloat(gm[3]);
+    entries.push({ name: '增长率', val: /下降|减少|下跌|回落|降低/.test(gm[2]) ? -v : v, pos: gm.index });
+  }
+  s = s.replace(growthRe, ' ');
+
+  // 2) 数字 + 单位（name 由前面最近的指标关键词决定，没有则为 null）
+  const numRe = /(\d[\d,]*(?:\.\d+)?)\s*(万亿|亿|万|千|百|%)?/g;
+  let m;
+  while ((m = numRe.exec(s))) {
+    if ((s[m.index + m[0].length] || '') === '年') continue; // 跳过年份
+    let val = parseFloat(m[1].replace(/,/g, ''));
+    const unit = m[2] || '';
+    if (unit === '万') val *= 10000;
+    else if (unit === '亿') val *= 1e8;
+    else if (unit === '千') val *= 1000;
+    else if (unit === '百') val *= 100;
+    entries.push({
+      name: findMetricName(s.slice(Math.max(0, m.index - 14), m.index)),
+      val, pos: m.index, unit
+    });
+  }
+  entries.sort((a, b) => a.pos - b.pos);
+  return entries;
+}
+
+// 把条目数组归列：有名的直接归列；无名的按 template（首条记录的列顺序）对位填充
+function assignColumns(records) {
+  // 用第一条记录的命名序列做模板
+  let template = [];
+  for (const rec of records) {
+    const names = rec.entries.filter(e => e.name).map(e => e.name);
+    if (names.length) { template = names; break; }
+  }
+
+  const headers = [];
+  records.forEach(rec => {
+    let unnamed = 0; let generic = 0;
+    rec.metrics = {};
+    rec.entries.forEach(e => {
+      let col = e.name;
+      if (!col) {
+        col = template[unnamed] || ('指标' + (++generic));
+        unnamed++;
+      }
+      if (!(col in rec.metrics)) rec.metrics[col] = e.val;
+      if (!headers.includes(col)) headers.push(col);
+    });
+  });
+  // 保证模板列排在最前
+  return template.filter(c => headers.includes(c)).concat(headers.filter(c => !template.includes(c)));
+}
+
+function fmtCell(n) {
+  if (typeof n !== 'number') return String(n);
+  return Number.isInteger(n) ? String(n) : String(Math.round(n * 100) / 100);
+}
+
+function parseNaturalLanguage(raw) {
+  const text = raw.replace(/[ \t\r\n]+/g, '');
+  let labelCol = '项目';
+  let records = [];
+
+  // 优先按时间标签切
+  let split = null;
+  for (const p of LABEL_PATTERNS) {
+    const ms = [...text.matchAll(p.re)];
+    if (ms.length >= 2) {
+      split = { pattern: p, matches: ms };
+      break;
+    }
+  }
+
+  if (split) {
+    labelCol = split.pattern.col;
+    const { matches } = split;
+    for (let i = 0; i < matches.length; i++) {
+      const start = matches[i].index + matches[i][0].length;
+      const end = i + 1 < matches.length ? matches[i + 1].index : text.length;
+      records.push({ label: split.pattern.fmt(matches[i]), entries: extractEntries(text.slice(start, end)) });
+    }
+  } else {
+    // 按标点切，每段开头文字作为项目名
+    const segs = text.split(/[，,。；;、\n]+/).map(s => s.trim()).filter(Boolean);
+    segs.forEach((seg, i) => {
+      const numPos = seg.search(/\d/);
+      let label = numPos >= 0 ? seg.slice(0, numPos) : seg;
+      // 标签清理：去掉开头的口头语、结尾的指标词与修饰词
+      label = label
+        .replace(/^(其中|比如|例如|像|有个?|该|这个)/, '')
+        .replace(/(最多|最高|最少|最低|达到|约有?|大约|达|有)$/, '')
+        .replace(/(净利润?|营?收|销售额|营业额|收入|销量|订单量?|成本|客单价|访问量|用户数|库存|评分|毛利|流量)$/, '')
+        .replace(/[：:、]+$/, '').trim();
+      // 整段参与识别（标签里可能带有指标词，如"产品A销量1240"）
+      const entries = extractEntries(seg);
+      if (entries.length) {
+        records.push({ label: label || ('项目' + (i + 1)), entries });
+      }
+    });
+  }
+
+  if (!records.length) return null;
+
+  const metricCols = assignColumns(records);
+  const headers = [labelCol].concat(metricCols);
+  const rows = records.map(r => {
+    const o = {};
+    o[labelCol] = r.label;
+    metricCols.forEach(h => { o[h] = h in r.metrics ? fmtCell(r.metrics[h]) : ''; });
+    return o;
+  });
+
+  const metricHeaders = headers.slice(1);
+  const title = metricHeaders[0] ? metricHeaders[0] + '数据分析报告' : '数据分析报告';
+  return { headers, rows, title };
+}
+
+function dataToCSV(data) {
+  return [data.headers.join(','), ...data.rows.map(r => data.headers.map(h => (r[h] ?? '').toString().replace(/,/g, '；')).join(','))].join('\n');
+}
+
+// ---------- 可选：OpenAI 兼容模型 ----------
+function loadApiCfg() {
+  try { return JSON.parse(localStorage.getItem('datavista_api') || '{}'); } catch (e) { return {}; }
+}
+function saveApiCfg() {
+  localStorage.setItem('datavista_api', JSON.stringify({
+    base: document.getElementById('apiBase').value.trim(),
+    key: document.getElementById('apiKey').value.trim(),
+    model: document.getElementById('apiModel').value.trim(),
+  }));
+}
+async function parseWithLLM(rawText, cfg) {
+  const resp = await fetch(cfg.base.replace(/\/+$/, '') + '/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + cfg.key },
+    body: JSON.stringify({
+      model: cfg.model || 'gpt-4o-mini',
+      temperature: 0.1,
+      messages: [
+        { role: 'system', content: '你是数据结构化助手。把用户用自然语言描述的数据转成JSON，且只输出JSON。格式：{"title":"报表标题","headers":["维度","指标1"],"rows":[{"维度":"1月","指标1":"12.84万"}]}。要求：1)第一列为时间或项目维度；2)数值保留用户原文单位（万/亿/%），不要换算；3)同一种指标只能有一列；4)不要输出JSON以外的任何内容。' },
+        { role: 'user', content: rawText }
+      ]
+    })
+  });
+  if (!resp.ok) throw new Error('模型接口返回 ' + resp.status);
+  const j = await resp.json();
+  const content = j.choices?.[0]?.message?.content || '';
+  const match = content.match(/\{[\s\S]*\}/);
+  if (!match) throw new Error('模型未返回有效 JSON');
+  return JSON.parse(match[0]);
+}
+
+// ---------- 模式切换 ----------
+let inputMode = 'nl';
+document.querySelectorAll('.mode-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    inputMode = tab.dataset.mode;
+    document.getElementById('nlMode').style.display = inputMode === 'nl' ? 'block' : 'none';
+    document.getElementById('csvMode').style.display = inputMode === 'csv' ? 'block' : 'none';
+  });
+});
+
+// 大白话示例
+document.querySelectorAll('.sample-tag[data-nlsample]').forEach(tag => {
+  tag.addEventListener('click', () => {
+    document.getElementById('nlInput').value = NL_SAMPLES[tag.dataset.nlsample];
+  });
+});
+
+// 表格示例
+document.querySelectorAll('.sample-tag[data-sample]').forEach(tag => {
+  tag.addEventListener('click', () => {
+    document.getElementById('dataInput').value = SAMPLES[tag.dataset.sample];
+  });
+});
+
+document.getElementById('sampleBtn').addEventListener('click', () => {
+  if (inputMode === 'nl') {
+    const keys = Object.keys(NL_SAMPLES);
+    document.getElementById('nlInput').value = NL_SAMPLES[keys[Math.floor(Math.random() * keys.length)]];
+  } else {
+    const keys = Object.keys(SAMPLES);
+    document.getElementById('dataInput').value = SAMPLES[keys[Math.floor(Math.random() * keys.length)]];
+  }
+});
+
+// 模型配置记忆
+(function restoreApiCfg() {
+  const cfg = loadApiCfg();
+  if (cfg.base) document.getElementById('apiBase').value = cfg.base;
+  if (cfg.key) document.getElementById('apiKey').value = cfg.key;
+  if (cfg.model) document.getElementById('apiModel').value = cfg.model;
+  ['apiBase', 'apiKey', 'apiModel'].forEach(id =>
+    document.getElementById(id).addEventListener('change', saveApiCfg));
+})();
+
+// 识别并生成
+document.getElementById('nlParseBtn').addEventListener('click', async () => {
+  const raw = document.getElementById('nlInput').value.trim();
+  const btn = document.getElementById('nlParseBtn');
+  if (!raw) { alert('先写几句描述你数据的话～'); return; }
+  btn.disabled = true;
+  const orig = btn.innerHTML;
+  btn.innerHTML = '<span class="loading"></span> 正在识别...';
+  if (window.Buzz) { Buzz.nod(); Buzz.say('正在识别数据结构…'); }
+
+  let structured = null;
+  const cfg = loadApiCfg();
+  try {
+    if (cfg.base && cfg.key) {
+      try {
+        structured = await parseWithLLM(raw, cfg);
+      } catch (e) {
+        console.warn('模型识别失败，回退内置识别：', e);
+        structured = parseNaturalLanguage(raw);
+      }
+    } else {
+      // 本地规则识别（同步包一层微延迟，让loading可见）
+      await new Promise(r => setTimeout(r, 300));
+      structured = parseNaturalLanguage(raw);
+    }
+
+    if (!structured || !structured.rows || !structured.rows.length) {
+      alert('没识别出数据，试试写成"1月销售额12.84万，2月15.62万"这样的格式');
+      return;
+    }
+
+    // 填入表格输入区并切换过去
+    document.getElementById('dataInput').value = dataToCSV(structured);
+    if (structured.title && !document.getElementById('reportTitle').value.trim()) {
+      document.getElementById('reportTitle').value = structured.title;
+    }
+    document.querySelector('.mode-tab[data-mode="csv"]').click();
+    document.getElementById('generateBtn').click();
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = orig;
+  }
+});
+
+document.getElementById('clearBtn').addEventListener('click', () => {
+  document.getElementById('dataInput').value = '';
+  document.getElementById('nlInput').value = '';
+  document.getElementById('reportTitle').value = '';
+  document.getElementById('formRows').innerHTML = `
+    <div class="form-row">
+      <input type="text" class="f-key" placeholder="项目名称">
+      <input type="text" class="f-val" placeholder="数值">
+      <button class="del-btn" onclick="this.parentElement.remove()">×</button>
+    </div>`;
+  document.getElementById('emptyState').style.display = 'flex';
+  document.getElementById('reportContent').style.display = 'none';
+  currentData = null;
+});
+
+document.getElementById('insightStyle').addEventListener('change', e => {
+  currentStyle = e.target.value;
+  if (currentData) renderInsight();
+});
+
+document.getElementById('regenInsightBtn').addEventListener('click', () => {
+  if (currentData) renderInsight();
+});
+
+document.getElementById('copyInsightBtn').addEventListener('click', () => {
+  const box = document.getElementById('insightText');
+  if (!box.textContent.trim()) return;
+  // 提取纯文本（去掉HTML标签，保留段落换行）
+  const temp = document.createElement('div');
+  temp.innerHTML = box.innerHTML;
+  const text = temp.innerText.trim();
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('copyInsightBtn');
+    const orig = btn.textContent;
+    btn.textContent = '✅ 已复制';
+    if (window.Buzz) Buzz.say('已复制，直接去汇报。');
+    setTimeout(() => btn.textContent = orig, 1500);
+  }).catch(() => {
+    // 降级方案
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    const btn = document.getElementById('copyInsightBtn');
+    const orig = btn.textContent;
+    btn.textContent = '✅ 已复制';
+    setTimeout(() => btn.textContent = orig, 1500);
+  });
+});
+
+function addFormRow() {
+  const row = document.createElement('div');
+  row.className = 'form-row';
+  row.innerHTML = `
+    <input type="text" class="f-key" placeholder="项目名称">
+    <input type="text" class="f-val" placeholder="数值">
+    <button class="del-btn" onclick="this.parentElement.remove()">×</button>`;
+  document.getElementById('formRows').appendChild(row);
+}
+window.addFormRow = addFormRow;
+
+// ---------- 演示模式：?demo=sales / ?demo=nlsales ----------
+(function () {
+  var params = new URLSearchParams(window.location.search);
+  var demoKey = params.get('demo');
+  var styleKey = params.get('style');
+
+  // 大白话演示：自动填充 → 走识别流程 → 生成报表
+  if (demoKey === 'nlsales' || demoKey === 'nlmulti') {
+    var nlKey = demoKey === 'nlsales' ? 'sales' : 'multi';
+    window.addEventListener('load', function () {
+      document.getElementById('nlInput').value = NL_SAMPLES[nlKey];
+      setTimeout(function () { document.getElementById('nlParseBtn').click(); }, 500);
+      window.__demoReady = true;
+    });
+    return;
+  }
+
+  if (demoKey && SAMPLES[demoKey]) {
+    document.getElementById('dataInput').value = SAMPLES[demoKey];
+    if (styleKey && document.getElementById('insightStyle').querySelector('option[value="' + styleKey + '"]')) {
+      document.getElementById('insightStyle').value = styleKey;
+    }
+    var demoTitles = {
+      sales: '年度销售数据态势分析报告',
+      traffic: '网站流量运营分析报告',
+      product: '产品矩阵经营分析报告',
+      finance: '季度财务指标分析报告'
+    };
+    if (demoTitles[demoKey]) {
+      document.getElementById('reportTitle').value = demoTitles[demoKey];
+    }
+    // 等 ECharts CDN 与页面资源就绪后自动生成
+    window.addEventListener('load', function () {
+      setTimeout(function () {
+        document.getElementById('generateBtn').click();
+        window.__demoReady = true;
+        var scrollKey = params.get('scroll');
+        if (scrollKey === 'insight') {
+          setTimeout(function () {
+            var el = document.querySelector('.insight-box');
+            if (el) el.scrollIntoView({ block: 'start' });
+            window.scrollTo(0, 0);
+          }, 2200);
+        }
+      }, 400);
+    });
+  }
+})();
+</script>
+</body>
+</html>

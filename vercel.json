@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    { "source": "/", "destination": "/datavista-app/index.html" },
+    { "source": "/index.html", "destination": "/datavista-app/index.html" },
+    { "source": "/report", "destination": "/datavista-app/report.html" },
+    { "source": "/report.html", "destination": "/datavista-app/report.html" }
+  ]
+}

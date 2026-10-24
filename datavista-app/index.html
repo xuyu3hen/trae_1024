@@ -1,0 +1,1220 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>秒懂看板 · 实时态势大屏</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #070b14;
+    color: #e8eef7;
+    overflow: hidden;
+    height: 100vh;
+  }
+
+  /* ===== 顶部控制栏 ===== */
+  .topbar {
+    height: 56px;
+    background: linear-gradient(180deg, #0f1623, #0a0f1a);
+    border-bottom: 1px solid #1f2a3d;
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    gap: 16px;
+    position: relative;
+    z-index: 100;
+  }
+  .brand {
+    font-weight: 700;
+    font-size: 18px;
+    background: linear-gradient(135deg, #fff, #22d3ee);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .brand .logo {
+    width: 28px; height: 28px;
+    border: 2px solid #22d3ee;
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    -webkit-text-fill-color: #22d3ee;
+  }
+  .scene-select {
+    display: flex;
+    gap: 6px;
+    margin-left: 20px;
+  }
+  .scene-btn {
+    padding: 6px 14px;
+    background: transparent;
+    border: 1px solid #1f2a3d;
+    border-radius: 6px;
+    color: #8b97ad;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all .2s;
+  }
+  .scene-btn:hover { border-color: #22d3ee; color: #e8eef7; }
+  .scene-btn.active {
+    background: rgba(34,211,238,.12);
+    border-color: #22d3ee;
+    color: #22d3ee;
+  }
+  .topbar-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .ctrl-btn {
+    padding: 7px 16px;
+    background: rgba(34,211,238,.1);
+    border: 1px solid rgba(34,211,238,.3);
+    border-radius: 6px;
+    color: #22d3ee;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all .2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .ctrl-btn:hover { background: rgba(34,211,238,.2); }
+  .ctrl-btn.primary {
+    background: linear-gradient(135deg, #22d3ee, #0891b2);
+    border-color: transparent;
+    color: #062029;
+    font-weight: 600;
+  }
+  .ctrl-btn.primary:hover { filter: brightness(1.1); }
+  .live-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #34d399;
+    font-family: monospace;
+  }
+  .live-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #34d399;
+    box-shadow: 0 0 8px #34d399;
+    animation: blink 1.2s infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+  /* ===== 大屏主体 ===== */
+  .dashboard {
+    height: calc(100vh - 56px);
+    padding: 16px;
+    display: grid;
+    grid-template-columns: 1fr 1.6fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 14px;
+  }
+
+  .panel {
+    background: linear-gradient(180deg, rgba(15,22,35,.9), rgba(10,15,26,.9));
+    border: 1px solid #1f2a3d;
+    border-radius: 10px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+  }
+  .panel::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 30px; height: 30px;
+    border-top: 2px solid #22d3ee;
+    border-left: 2px solid #22d3ee;
+    border-top-left-radius: 10px;
+  }
+  .panel::after {
+    content: '';
+    position: absolute;
+    bottom: 0; right: 0;
+    width: 30px; height: 30px;
+    border-bottom: 2px solid #22d3ee;
+    border-right: 2px solid #22d3ee;
+    border-bottom-right-radius: 10px;
+  }
+  .panel-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #22d3ee;
+    margin-bottom: 10px;
+    letter-spacing: .05em;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .panel-title .tag {
+    font-size: 10px;
+    color: #8b97ad;
+    font-weight: 400;
+    font-family: monospace;
+  }
+
+  /* ===== 左上：核心指标 ===== */
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    flex: 1;
+  }
+  .metric-card {
+    background: rgba(22,31,48,.5);
+    border: 1px solid #1f2a3d;
+    border-radius: 8px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .metric-value {
+    font-family: 'Consolas', monospace;
+    font-size: 26px;
+    font-weight: 700;
+    color: #22d3ee;
+    line-height: 1.1;
+  }
+  .metric-value.warn { color: #f59e0b; }
+  .metric-value.danger { color: #f87171; }
+  .metric-value.ok { color: #34d399; }
+  .metric-label {
+    font-size: 11px;
+    color: #8b97ad;
+    margin-top: 4px;
+  }
+  .metric-trend {
+    font-size: 10px;
+    margin-top: 2px;
+    font-family: monospace;
+  }
+  .trend-up { color: #34d399; }
+  .trend-down { color: #f87171; }
+
+  /* ===== 中间上：态势解读（核心） ===== */
+  .insight-panel {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .insight-box {
+    flex: 1;
+    background: rgba(22,31,48,.4);
+    border: 1px solid rgba(34,211,238,.15);
+    border-radius: 8px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+  }
+  .insight-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .insight-badge {
+    font-size: 10px;
+    font-family: monospace;
+    color: #f59e0b;
+    border: 1px solid rgba(245,158,11,.4);
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+  .insight-style-select {
+    margin-left: auto;
+    background: #0f1623;
+    border: 1px solid #1f2a3d;
+    color: #8b97ad;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    cursor: pointer;
+  }
+  .insight-text {
+    flex: 1;
+    font-size: 14px;
+    line-height: 1.9;
+    color: #e8eef7;
+    overflow-y: auto;
+  }
+  .insight-text .buzz {
+    color: #22d3ee;
+    font-weight: 600;
+  }
+  .insight-text .num {
+    color: #f59e0b;
+    font-family: monospace;
+    font-weight: 600;
+  }
+  .typing-cursor {
+    display: inline-block;
+    width: 8px;
+    height: 16px;
+    background: #22d3ee;
+    margin-left: 2px;
+    animation: cursor .8s infinite;
+    vertical-align: middle;
+  }
+  @keyframes cursor { 0%,100%{opacity:1} 50%{opacity:0} }
+
+  .insight-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid #1f2a3d;
+  }
+  .insight-meta {
+    font-size: 10px;
+    color: #8b97ad;
+    font-family: monospace;
+  }
+  .regen-btn {
+    padding: 5px 12px;
+    background: rgba(245,158,11,.12);
+    border: 1px solid rgba(245,158,11,.3);
+    border-radius: 5px;
+    color: #f59e0b;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all .2s;
+  }
+  .regen-btn:hover { background: rgba(245,158,11,.25); }
+  .regen-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+  /* ===== 中间下：主图表 ===== */
+  .chart-panel {
+    grid-column: 2;
+    grid-row: 2;
+  }
+  .chart-tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  .chart-tab {
+    padding: 4px 12px;
+    background: transparent;
+    border: 1px solid #1f2a3d;
+    border-radius: 4px;
+    color: #8b97ad;
+    cursor: pointer;
+    font-size: 11px;
+  }
+  .chart-tab.active {
+    border-color: #22d3ee;
+    color: #22d3ee;
+    background: rgba(34,211,238,.08);
+  }
+  .chart-canvas {
+    flex: 1;
+    width: 100%;
+  }
+
+  /* ===== 左下：Lamborghini 座舱仪表 ===== */
+  .gauge-panel {
+    grid-column: 1;
+    grid-row: 2;
+    background:
+      radial-gradient(120% 70% at 50% 0%, rgba(255,106,0,.12), transparent 58%),
+      repeating-linear-gradient(45deg, rgba(255,255,255,.016) 0 2px, transparent 2px 5px),
+      repeating-linear-gradient(-45deg, rgba(0,0,0,.18) 0 2px, transparent 2px 5px),
+      linear-gradient(180deg, #14151b, #08090d);
+    border-color: #2b2d36;
+  }
+  .gauge-panel::before { border-color: #ff8a00; }
+  .gauge-panel::after { border-color: #ff8a00; }
+  .gauge-panel .panel-title {
+    color: #ffb400;
+    font-size: 12px;
+    letter-spacing: .05em;
+    white-space: nowrap;
+  }
+  .gauge-panel .panel-title .tag { color: #8a7452; font-size: 9px; letter-spacing: .04em; white-space: nowrap; }
+
+  .cluster {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .tach-wrap {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .tach { width: 100%; height: 100%; display: block; }
+  .tach-readout {
+    position: absolute;
+    left: 50%;
+    bottom: 7%;
+    transform: translateX(-50%);
+    text-align: center;
+    pointer-events: none;
+  }
+  .tach-num {
+    font-family: Consolas, "SF Mono", monospace;
+    font-style: italic;
+    font-weight: 700;
+    font-size: clamp(24px, 2.3vw, 38px);
+    line-height: .9;
+    color: #fff;
+    transform: skewX(-9deg);
+    letter-spacing: -2px;
+    text-shadow: 0 0 22px rgba(255,150,0,.55), 0 0 5px rgba(255,255,255,.35);
+  }
+  .tach-num em {
+    font-style: italic;
+    font-size: 12px;
+    letter-spacing: 0;
+    margin-left: 3px;
+    color: #ffb400;
+  }
+  .tach-label {
+    margin-top: 7px;
+    font-size: 9px;
+    letter-spacing: .3em;
+    color: #98a0ae;
+    transform: skewX(-9deg);
+  }
+
+  .bars {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    flex-shrink: 0;
+  }
+  .bar { display: flex; align-items: center; gap: 8px; }
+  .bar-name {
+    width: 54px;
+    flex-shrink: 0;
+    font-size: 10px;
+    color: #98a1b0;
+    letter-spacing: .04em;
+  }
+  .bar-track {
+    position: relative;
+    flex: 1;
+    height: 7px;
+    background: #171a21;
+    overflow: hidden;
+    clip-path: polygon(0 0, 100% 0, calc(100% - 6px) 50%, 100% 100%, 0 100%, 6px 50%);
+  }
+  .bar-fill {
+    display: block;
+    height: 100%;
+    width: 0;
+    background: linear-gradient(90deg, #ffd400, #ff8a00 55%, #ff2d1f);
+    box-shadow: 0 0 10px rgba(255,140,0,.55);
+    transition: width .9s cubic-bezier(.22,1,.36,1);
+  }
+  .bar-track::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(90deg, transparent 0 5px, #0a0c10 5px 7px);
+    pointer-events: none;
+  }
+  .bar-val {
+    width: 34px;
+    flex-shrink: 0;
+    text-align: right;
+    font-family: Consolas, monospace;
+    font-style: italic;
+    font-size: 10px;
+    color: #ffb400;
+  }
+
+  /* ===== 右上：实时日志 ===== */
+  .log-panel {
+    grid-column: 3;
+    grid-row: 1;
+  }
+  .log-list {
+    flex: 1;
+    overflow-y: auto;
+    font-family: monospace;
+    font-size: 11px;
+    line-height: 1.8;
+  }
+  .log-item {
+    padding: 3px 0;
+    border-bottom: 1px solid rgba(31,42,61,.5);
+    display: flex;
+    gap: 8px;
+  }
+  .log-time { color: #8b97ad; }
+  .log-level.INFO { color: #34d399; }
+  .log-level.WARN { color: #f59e0b; }
+  .log-level.ERROR { color: #f87171; }
+  .log-msg { color: #c5cddb; }
+
+  /* ===== 右下：状态指示灯 ===== */
+  .status-panel {
+    grid-column: 3;
+    grid-row: 2;
+  }
+  .status-list {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 10px;
+  }
+  .status-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    background: rgba(22,31,48,.4);
+    border-radius: 6px;
+  }
+  .status-led {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .status-led.green { background: #34d399; box-shadow: 0 0 8px #34d399; }
+  .status-led.yellow { background: #f59e0b; box-shadow: 0 0 8px #f59e0b; animation: blink 1.5s infinite; }
+  .status-led.red { background: #f87171; box-shadow: 0 0 8px #f87171; animation: blink .8s infinite; }
+  .status-name { font-size: 12px; color: #e8eef7; flex: 1; }
+  .status-val { font-family: monospace; font-size: 11px; color: #8b97ad; }
+
+  /* ===== 滚动条 ===== */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #1f2a3d; border-radius: 2px; }
+
+  /* ===== 加载动画 ===== */
+  .loading {
+    display: inline-block;
+    width: 12px; height: 12px;
+    border: 2px solid rgba(34,211,238,.3);
+    border-top-color: #22d3ee;
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<!-- 顶部控制栏 -->
+<div class="topbar">
+  <div class="brand"><span class="logo">秒</span>秒懂看板</div>
+  <div class="scene-select" id="sceneSelect">
+    <button class="scene-btn active" data-scene="city">智慧城市</button>
+    <button class="scene-btn" data-scene="industry">工业互联网</button>
+    <button class="scene-btn" data-scene="traffic">智慧交通</button>
+    <button class="scene-btn" data-scene="campus">智慧园区</button>
+  </div>
+  <div class="topbar-right">
+    <div class="live-indicator"><span class="live-dot"></span> LIVE</div>
+    <button class="ctrl-btn" id="refreshBtn">🔄 刷新数据</button>
+    <a class="ctrl-btn" href="report.html" style="text-decoration:none;">📊 生成报表</a>
+    <button class="ctrl-btn primary" id="fullscreenBtn">⛶ 全屏展示</button>
+  </div>
+</div>
+
+<!-- 大屏主体 -->
+<div class="dashboard">
+
+  <!-- 左上：核心指标 -->
+  <div class="panel">
+    <div class="panel-title">核心运营指标 <span class="tag">METRICS</span></div>
+    <div class="metrics-grid" id="metricsGrid"></div>
+  </div>
+
+  <!-- 中间上：态势解读 -->
+  <div class="panel insight-panel">
+    <div class="panel-title">智能态势解读 <span class="tag">INSIGHT ENGINE · 核心能力</span></div>
+    <div class="insight-box">
+      <div class="insight-header">
+        <span class="insight-badge">AI 自动生成</span>
+        <select class="insight-style-select" id="styleSelect">
+          <option value="strategy">战略汇报型</option>
+          <option value="operation">运营分析型</option>
+          <option value="tech">技术监控型</option>
+          <option value="mgmt">管理驾驶舱型</option>
+        </select>
+      </div>
+      <div class="insight-text" id="insightText">
+        <span class="loading"></span> 正在生成态势解读...
+      </div>
+      <div class="insight-footer">
+        <span class="insight-meta" id="insightMeta">引擎版本 v1.0 · 置信度 --</span>
+        <button class="regen-btn" id="regenBtn">⚡ 重新生成解读</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 中间下：主图表 -->
+  <div class="panel chart-panel">
+    <div class="panel-title">趋势分析 <span class="tag">TREND</span></div>
+    <div class="chart-tabs" id="chartTabs">
+      <button class="chart-tab active" data-chart="line">流量趋势</button>
+      <button class="chart-tab" data-chart="bar">区域分布</button>
+      <button class="chart-tab" data-chart="pie">类型占比</button>
+    </div>
+    <canvas class="chart-canvas" id="chartCanvas"></canvas>
+  </div>
+
+  <!-- 左下：Lamborghini 风格仪表盘 -->
+  <div class="panel gauge-panel">
+    <div class="panel-title">系统负载监测 <span class="tag">COCKPIT · LIVE</span></div>
+    <div class="cluster">
+      <div class="tach-wrap">
+        <svg class="tach" id="tach" viewBox="0 0 320 210" preserveAspectRatio="xMidYMid meet"></svg>
+        <div class="tach-readout">
+          <div class="tach-num"><span id="tachValue">0</span><em>%</em></div>
+          <div class="tach-label" id="tachLabel">综合负载</div>
+        </div>
+      </div>
+      <div class="bars" id="bars"></div>
+    </div>
+  </div>
+
+  <!-- 右上：实时日志 -->
+  <div class="panel log-panel">
+    <div class="panel-title">实时事件流 <span class="tag">EVENTS</span></div>
+    <div class="log-list" id="logList"></div>
+  </div>
+
+  <!-- 右下：状态灯 -->
+  <div class="panel status-panel">
+    <div class="panel-title">节点健康度 <span class="tag">STATUS</span></div>
+    <div class="status-list" id="statusList"></div>
+  </div>
+
+</div>
+
+<script src="buzz.js"></script>
+<script>
+/* ============================================================
+   智视 DataVista · 核心逻辑
+   ============================================================ */
+
+// ---------- 场景数据配置 ----------
+const SCENES = {
+  city: {
+    name: '智慧城市运营态势',
+    metrics: [
+      { label: '在线设备数', value: 128432, unit: '台', color: 'ok', range: [120000, 135000] },
+      { label: '今日事件', value: 3847, unit: '件', color: 'warn', range: [3000, 5000] },
+      { label: '响应时长', value: 4.2, unit: 'min', color: 'ok', range: [3, 8] },
+      { label: '处置完成率', value: 96.8, unit: '%', color: 'ok', range: [90, 100] },
+    ],
+    gauges: [
+      { name: '网络负载', value: 68 },
+      { name: '算力占用', value: 54 },
+      { name: '存储使用', value: 73 },
+      { name: '告警指数', value: 32 },
+    ],
+    status: [
+      { name: '感知网络', status: 'green', val: '正常' },
+      { name: '数据中台', status: 'green', val: '正常' },
+      { name: 'AI 推理集群', status: 'yellow', val: '负载 78%' },
+      { name: '应急联动', status: 'green', val: '就绪' },
+      { name: '指挥调度', status: 'green', val: '在线' },
+    ],
+    logEvents: ['市民热线接入 +128', '交通拥堵预警解除', '环境监测数据上报', '安防巡逻路径优化', '地下管网压力正常'],
+  },
+  industry: {
+    name: '工业互联网生产态势',
+    metrics: [
+      { label: '产线在线率', value: 99.2, unit: '%', color: 'ok', range: [95, 100] },
+      { label: '今日产量', value: 8642, unit: '件', color: 'ok', range: [8000, 9000] },
+      { label: '设备 OEE', value: 87.5, unit: '%', color: 'ok', range: [80, 95] },
+      { label: '异常停机', value: 3, unit: '次', color: 'warn', range: [0, 10] },
+    ],
+    gauges: [
+      { name: '主轴转速', value: 82 },
+      { name: '温度监控', value: 61 },
+      { name: '能耗指数', value: 74 },
+      { name: '良品率', value: 96 },
+    ],
+    status: [
+      { name: '1号产线', status: 'green', val: '运行中' },
+      { name: '2号产线', status: 'green', val: '运行中' },
+      { name: '3号产线', status: 'yellow', val: '待维护' },
+      { name: '质检系统', status: 'green', val: '在线' },
+      { name: '物流 AGV', status: 'green', val: '12台在线' },
+    ],
+    logEvents: ['产线1 产量达标', '设备温度预警解除', '质检合格率 98.6%', 'AGV 电池更换完成', '物料补给请求已响应'],
+  },
+  traffic: {
+    name: '智慧交通运行态势',
+    metrics: [
+      { label: '在途车辆', value: 45821, unit: '辆', color: 'warn', range: [40000, 60000] },
+      { label: '平均车速', value: 38.6, unit: 'km/h', color: 'ok', range: [30, 60] },
+      { label: '拥堵路段', value: 12, unit: '处', color: 'warn', range: [5, 20] },
+      { label: '信号灯优化', value: 98.3, unit: '%', color: 'ok', range: [95, 100] },
+    ],
+    gauges: [
+      { name: '路网负载', value: 71 },
+      { name: '通行效率', value: 65 },
+      { name: '事故风险', value: 28 },
+      { name: '信号配时', value: 88 },
+    ],
+    status: [
+      { name: '主干道监控', status: 'green', val: '正常' },
+      { name: '信号灯控制', status: 'green', val: '自适应' },
+      { name: '电子警察', status: 'green', val: '在线' },
+      { name: '拥堵预警', status: 'yellow', val: '12处' },
+      { name: '应急车辆', status: 'green', val: '待命' },
+    ],
+    logEvents: ['东三环拥堵预警', '信号灯配时已优化', '事故已处理完毕', '公交到站准确率 99%', '违停抓拍 +56'],
+  },
+  campus: {
+    name: '智慧园区综合态势',
+    metrics: [
+      { label: '在岗人数', value: 2847, unit: '人', color: 'ok', range: [2500, 3200] },
+      { label: '能耗指数', value: 76.3, unit: '', color: 'warn', range: [60, 90] },
+      { label: '安防事件', value: 5, unit: '起', color: 'ok', range: [0, 15] },
+      { label: '车位占用', value: 68.4, unit: '%', color: 'warn', range: [50, 95] },
+    ],
+    gauges: [
+      { name: '空调负载', value: 62 },
+      { name: '照明系统', value: 45 },
+      { name: '电梯运行', value: 88 },
+      { name: '安防覆盖', value: 99 },
+    ],
+    status: [
+      { name: '门禁系统', status: 'green', val: '正常' },
+      { name: '视频监控', status: 'green', val: '256路' },
+      { name: '消防系统', status: 'green', val: '就绪' },
+      { name: '能源管理', status: 'yellow', val: '负载偏高' },
+      { name: '访客系统', status: 'green', val: '正常' },
+    ],
+    logEvents: ['访客登记 +23', '会议室预约已确认', '空调温度已调节', '消防巡检完成', '停车场空位 142'],
+  },
+};
+
+// ---------- 态势解读黑话引擎 ----------
+const BUZZWORDS = {
+  strategy: {
+    nouns: ['势能', '抓手', '闭环', '颗粒度', '组合拳', '底座', '生态', '链路', '场景', '维度'],
+    verbs: ['对齐', '赋能', '沉淀', '拆解', '联动', '协同', '聚焦', '夯实', '打通', '重构'],
+    adjs: ['结构性', '非对称', '边际', '全局', '核心', '关键', '底层', '顶层', '横向', '纵向'],
+    connect: ['建议', '需要', '应当', '宜', '可考虑', '建议进一步', '有待'],
+  },
+  operation: {
+    nouns: ['渗透系数', '转化链路', '留存漏斗', 'LTV', 'ARPU', '复购', '触达', '激活', '转化', '召回'],
+    verbs: ['提升', '优化', '拉升', '撬动', '放大', '强化', '巩固', '拓展', '激活', '盘活'],
+    adjs: ['显著', '持续', '稳定', '良性', '健康', '高效', '精准', '深度', '全面', '重点'],
+    connect: ['数据表明', '趋势显示', '可以看出', '值得关注', '需要留意', '分析显示'],
+  },
+  tech: {
+    nouns: ['吞吐量', '并发量', '延迟', '可用性', 'SLA', '容灾', '吞吐量', 'QPS', 'TPS', '吞吐'],
+    verbs: ['扩容', '降级', '熔断', '隔离', '同步', '异步', '缓存', '分片', '冗余', '调优'],
+    adjs: ['高可用', '分布式', '弹性', '实时', '毫秒级', '高并发', '低延迟', '稳定', '可靠', '健壮'],
+    connect: ['监控显示', '指标表明', '日志分析', '链路追踪', '性能分析'],
+  },
+  mgmt: {
+    nouns: ['降本增效', '提质增速', '协同联动', '闭环管控', '精细化', '标准化', '体系化', '数字化', '智能化', '常态化'],
+    verbs: ['推进', '落实', '深化', '强化', '完善', '健全', '优化', '提升', '夯实', '筑牢'],
+    adjs: ['全面', '系统', '深入', '扎实', '有效', '持续', '稳步', '有序', '高效', '精准'],
+    connect: ['总体来看', '综合判断', '从全局看', '下一步', '建议', '需要'],
+  },
+};
+
+// 数据特征模板（根据当前数据生成"看似专业"的解读）
+function generateInsight(scene, style) {
+  const bw = BUZZWORDS[style];
+  const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+  const data = SCENES[scene];
+  const metric = data.metrics[Math.floor(Math.random() * data.metrics.length)];
+
+  const templates = [
+    // 模板1：趋势 + 建议
+    `当前${metric.label.replace(/数|率|时长|指数|占用/g, '')}态势呈现${pick(bw.adjs)}${pick(bw.nouns)}特征，${pick(bw.connect)}关注${pick(bw.adjs)}${pick(bw.nouns)}的${pick(bw.verbs)}节奏，以${pick(bw.connect)}${pick(bw.verbs)}核心${pick(bw.nouns)}。`,
+    // 模板2：结构分析
+    `从${pick(bw.nouns)}${pick(bw.nouns)}看，各维度${pick(bw.nouns)}呈现${pick(bw.adjs)}波动，${pick(bw.connect)}进一步${pick(bw.verbs)}${pick(bw.nouns)}与${pick(bw.nouns)}的${pick(bw.nouns)}关系，形成${pick(bw.adjs)}${pick(bw.nouns)}。`,
+    // 模板3：综合判断
+    `整体${pick(bw.nouns)}处于${pick(bw.adjs)}区间，${pick(bw.nouns)}与${pick(bw.nouns)}的${pick(bw.nouns)}效应初步显现。${pick(bw.connect)}${pick(bw.verbs)}${pick(bw.adjs)}${pick(bw.nouns)}，推动${pick(bw.nouns)}${pick(bw.nouns)}迈上新台阶。`,
+    // 模板4：数据引用
+    `${metric.label}为<span class="num">${metric.value}${metric.unit}</span>，${pick(bw.adjs)}${pick(bw.nouns)}保持在${pick(bw.adjs)}水平。${pick(bw.connect)}${pick(bw.verbs)}${pick(bw.nouns)}，${pick(bw.verbs)}${pick(bw.nouns)}，确保${pick(bw.nouns)}${pick(bw.nouns)}${pick(bw.adjs)}运转。`,
+  ];
+
+  let text = templates[Math.floor(Math.random() * templates.length)];
+  // 高亮黑话词
+  const allWords = [...bw.nouns, ...bw.verbs, ...bw.adjs];
+  allWords.sort((a, b) => b.length - a.length); // 长词优先匹配
+  allWords.forEach(w => {
+    text = text.replace(new RegExp(w, 'g'), `<span class="buzz">${w}</span>`);
+  });
+  return text;
+}
+
+// ---------- 状态 ----------
+let currentScene = 'city';
+let currentStyle = 'strategy';
+let isTyping = false;
+let chartType = 'line';
+let chartData = [];
+
+// ---------- 渲染核心指标 ----------
+function renderMetrics() {
+  const grid = document.getElementById('metricsGrid');
+  grid.innerHTML = '';
+  SCENES[currentScene].metrics.forEach(m => {
+    const card = document.createElement('div');
+    card.className = 'metric-card';
+    const up = Math.random() > 0.4;
+    card.innerHTML = `
+      <div class="metric-value ${m.color}">${formatNum(m.value)}<span style="font-size:13px;color:#8b97ad">${m.unit}</span></div>
+      <div class="metric-label">${m.label}</div>
+      <div class="metric-trend ${up ? 'trend-up' : 'trend-down'}">${up ? '▲' : '▼'} ${(Math.random()*5+0.5).toFixed(1)}%</div>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+function formatNum(n) {
+  if (n >= 10000) return (n/10000).toFixed(1) + '万';
+  if (Number.isInteger(n)) return n.toLocaleString();
+  return n.toFixed(1);
+}
+
+// ---------- Lamborghini 座舱仪表 ----------
+const TACH = { cx: 160, cy: 116, r: 92, start: 135, end: 405 };
+let liveGauges = [];
+let tachRAF = null;
+
+// 构建表盘骨架：外圈 / 深色刻度带 / 楔形精密刻度 / 数字 / 发光进度弧 / 指针 / 六角轮芯
+function buildTach() {
+  const svg = document.getElementById('tach');
+  if (!svg) return;
+  const { cx, cy, r, start, end } = TACH;
+  const span = end - start;
+  const pt = (deg, rr) => {
+    const t = deg * Math.PI / 180;
+    return [cx + rr * Math.cos(t), cy + rr * Math.sin(t)];
+  };
+  const arc = (r0, a0, a1) => {
+    const [x0, y0] = pt(a0, r0);
+    const [x1, y1] = pt(a1, r0);
+    const large = (a1 - a0) > 180 ? 1 : 0;
+    return `M${x0.toFixed(2)},${y0.toFixed(2)} A${r0} ${r0} 0 ${large} 1 ${x1.toFixed(2)},${y1.toFixed(2)}`;
+  };
+
+  const outerArc = arc(r + 20, start, end);
+  const trackArc = arc(r, start, end);
+  const redArc = arc(r, start + span * 0.86, end);
+
+  let ticks = '';
+  const N = 54;
+  for (let i = 0; i <= N; i++) {
+    const frac = i / N;
+    const major = i % 5 === 0;
+    const a = start + span * frac;
+    const t = a * Math.PI / 180;
+    const ux = Math.cos(t), uy = Math.sin(t);
+    const px = -uy, py = ux;
+    const rin = major ? r + 8 : r + 13;
+    const rout = r + 20;
+    const wi = major ? 1.1 : 0.45;
+    const wo = major ? 2.4 : 1.1;
+    const pts = [
+      [cx + ux * rin + px * wi, cy + uy * rin + py * wi],
+      [cx + ux * rout + px * wo, cy + uy * rout + py * wo],
+      [cx + ux * rout - px * wo, cy + uy * rout - py * wo],
+      [cx + ux * rin - px * wi, cy + uy * rin - py * wi],
+    ].map(p => `${p[0].toFixed(2)},${p[1].toFixed(2)}`).join(' ');
+    const col = frac > 0.85 ? '#ff3b1f' : major ? '#e6ecf6' : '#454c5b';
+    ticks += `<polygon points="${pts}" fill="${col}" opacity="${major ? 0.95 : 0.75}"/>`;
+  }
+
+  let labels = '';
+  for (let i = 0; i <= 10; i++) {
+    const [x, y] = pt(start + span * i / 10, r - 22);
+    labels += `<text x="${x.toFixed(1)}" y="${(y + 3).toFixed(1)}" text-anchor="middle" font-size="8" font-style="italic" fill="${i >= 9 ? '#ff6a4a' : '#6f7787'}" font-family="Consolas,monospace">${i}</text>`;
+  }
+
+  const hexPts = [];
+  for (let i = 0; i < 6; i++) {
+    const a = Math.PI / 3 * i;
+    hexPts.push(`${(cx + 4.6 * Math.cos(a)).toFixed(1)},${(cy + 4.6 * Math.sin(a)).toFixed(1)}`);
+  }
+
+  svg.innerHTML = `
+    <defs>
+      <linearGradient id="arcGrad" x1="0" y1="0.2" x2="1" y2="0.8">
+        <stop offset="0" stop-color="#ffd400"/>
+        <stop offset="0.45" stop-color="#ffa000"/>
+        <stop offset="0.78" stop-color="#ff5a00"/>
+        <stop offset="1" stop-color="#ff2d2d"/>
+      </linearGradient>
+      <linearGradient id="needleGrad" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0" stop-color="#ffd400"/>
+        <stop offset="0.55" stop-color="#ff7a00"/>
+        <stop offset="1" stop-color="#ff2d1f"/>
+      </linearGradient>
+      <filter id="tachGlow" x="-60%" y="-60%" width="220%" height="220%">
+        <feGaussianBlur stdDeviation="2.4" result="b"/>
+        <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+    </defs>
+    <path d="${outerArc}" fill="none" stroke="rgba(255,150,0,.16)" stroke-width="1"/>
+    <path d="${trackArc}" fill="none" stroke="#1b1d24" stroke-width="16" stroke-linecap="round"/>
+    <path d="${trackArc}" fill="none" stroke="rgba(255,255,255,.055)" stroke-width="9"/>
+    ${ticks}
+    ${labels}
+    <path d="${redArc}" fill="none" stroke="rgba(255,45,45,.3)" stroke-width="9"/>
+    <path id="tachProgress" d="${trackArc}" pathLength="100" fill="none" stroke="url(#arcGrad)"
+          stroke-width="9" stroke-linecap="round" stroke-dasharray="0 100" filter="url(#tachGlow)"/>
+    <g id="tachNeedle" transform="rotate(${start} ${cx} ${cy})">
+      <polygon points="${cx + r - 8},${cy} ${cx + 14},${cy - 3.4} ${cx - 8},${cy - 2.6} ${cx - 8},${cy + 2.6} ${cx + 14},${cy + 3.4}"
+               fill="url(#needleGrad)" filter="url(#tachGlow)"/>
+    </g>
+    <circle cx="${cx}" cy="${cy}" r="11" fill="#101218" stroke="#ff7a00" stroke-width="1.2"/>
+    <polygon points="${hexPts.join(' ')}" fill="#ff9d00" opacity=".9"/>
+  `;
+}
+
+// 指针 + 进度弧 + 数字读数联动动画
+function setTach(value, animate = true) {
+  const prog = document.getElementById('tachProgress');
+  const needle = document.getElementById('tachNeedle');
+  const num = document.getElementById('tachValue');
+  if (!prog || !needle || !num) return;
+  const v = Math.max(0, Math.min(100, value));
+  const from = parseFloat(num.dataset.v || 0);
+  const span = TACH.end - TACH.start;
+  const apply = cur => {
+    prog.setAttribute('stroke-dasharray', `${cur.toFixed(2)} ${(100 - cur).toFixed(2)}`);
+    const deg = TACH.start + span * cur / 100;
+    needle.setAttribute('transform', `rotate(${deg.toFixed(2)} ${TACH.cx} ${TACH.cy})`);
+    num.textContent = Math.round(cur);
+  };
+  if (tachRAF) cancelAnimationFrame(tachRAF);
+  if (!animate) { apply(v); num.dataset.v = v; return; }
+  const t0 = performance.now();
+  const dur = 950;
+  const step = now => {
+    const k = Math.min(1, (now - t0) / dur);
+    const e = 1 - Math.pow(1 - k, 3);
+    const cur = from + (v - from) * e;
+    apply(cur);
+    num.dataset.v = cur;
+    if (k < 1) tachRAF = requestAnimationFrame(step);
+  };
+  tachRAF = requestAnimationFrame(step);
+}
+
+// ---------- 渲染仪表盘 ----------
+function renderGauges() {
+  const gauges = SCENES[currentScene].gauges;
+  liveGauges = gauges.map(g => g.value);
+  setTach(liveGauges.reduce((a, b) => a + b, 0) / liveGauges.length);
+
+  const wrap = document.getElementById('bars');
+  wrap.innerHTML = '';
+  gauges.forEach((g, i) => {
+    const el = document.createElement('div');
+    el.className = 'bar';
+    el.innerHTML = `
+      <span class="bar-name">${g.name}</span>
+      <span class="bar-track"><i class="bar-fill"></i></span>
+      <span class="bar-val">${liveGauges[i]}%</span>
+    `;
+    wrap.appendChild(el);
+    requestAnimationFrame(() => { el.querySelector('.bar-fill').style.width = liveGauges[i] + '%'; });
+  });
+}
+
+// ---------- 渲染状态灯 ----------
+function renderStatus() {
+  const list = document.getElementById('statusList');
+  list.innerHTML = '';
+  SCENES[currentScene].status.forEach(s => {
+    const el = document.createElement('div');
+    el.className = 'status-item';
+    el.innerHTML = `
+      <span class="status-led ${s.status}"></span>
+      <span class="status-name">${s.name}</span>
+      <span class="status-val">${s.val}</span>
+    `;
+    list.appendChild(el);
+  });
+}
+
+// ---------- 渲染日志 ----------
+let logTimer = null;
+function renderLog() {
+  const list = document.getElementById('logList');
+  const events = SCENES[currentScene].logEvents;
+  const levels = ['INFO', 'INFO', 'INFO', 'WARN', 'INFO'];
+  function addLog() {
+    const now = new Date();
+    const t = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+    const evt = events[Math.floor(Math.random() * events.length)];
+    const lvl = levels[Math.floor(Math.random() * levels.length)];
+    const item = document.createElement('div');
+    item.className = 'log-item';
+    item.innerHTML = `<span class="log-time">${t}</span><span class="log-level ${lvl}">[${lvl}]</span><span class="log-msg">${evt}</span>`;
+    list.insertBefore(item, list.firstChild);
+    if (list.children.length > 30) list.removeChild(list.lastChild);
+  }
+  for (let i = 0; i < 8; i++) addLog();
+  if (logTimer) clearInterval(logTimer);
+  logTimer = setInterval(addLog, 2200);
+}
+
+// ---------- 态势解读（打字机效果） ----------
+function renderInsight() {
+  const box = document.getElementById('insightText');
+  const btn = document.getElementById('regenBtn');
+  const meta = document.getElementById('insightMeta');
+  if (isTyping) return;
+  isTyping = true;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="loading"></span> 生成中...';
+  if (window.Buzz) { Buzz.nod(2400); Buzz.say('解读生成中，重点我来标…'); }
+
+  const html = generateInsight(currentScene, currentStyle);
+  // 打字机：逐步显示 HTML（简单起见按字符显示，但要处理标签）
+  box.innerHTML = '';
+  let i = 0;
+  let display = '';
+  const typeInterval = setInterval(() => {
+    if (i >= html.length) {
+      clearInterval(typeInterval);
+      isTyping = false;
+      btn.disabled = false;
+      btn.innerHTML = '⚡ 重新生成解读';
+      meta.textContent = `引擎版本 v1.0 · 置信度 ${(Math.random()*15+82).toFixed(1)}% · ${new Date().toLocaleTimeString()}`;
+      if (window.Buzz) Buzz.say('解读已就绪。');
+      return;
+    }
+    // 如果遇到 < 标签，一次性读到 >
+    if (html[i] === '<') {
+      const end = html.indexOf('>', i);
+      display += html.slice(i, end + 1);
+      i = end + 1;
+    } else {
+      display += html[i];
+      i++;
+    }
+    box.innerHTML = display + '<span class="typing-cursor"></span>';
+  }, 18);
+}
+
+// ---------- 图表绘制 ----------
+const canvas = document.getElementById('chartCanvas');
+const ctx = canvas.getContext('2d');
+
+function resizeCanvas() {
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * 2;
+  canvas.height = rect.height * 2;
+  ctx.scale(2, 2);
+}
+
+function genChartData() {
+  chartData = [];
+  for (let i = 0; i < 12; i++) {
+    chartData.push(Math.floor(Math.random() * 80 + 20));
+  }
+}
+
+function drawChart() {
+  resizeCanvas();
+  const w = canvas.width / 2;
+  const h = canvas.height / 2;
+  ctx.clearRect(0, 0, w, h);
+
+  const pad = { l: 36, r: 16, t: 16, b: 28 };
+  const cw = w - pad.l - pad.r;
+  const ch = h - pad.t - pad.b;
+
+  // 网格
+  ctx.strokeStyle = '#1f2a3d';
+  ctx.lineWidth = 1;
+  ctx.font = '10px monospace';
+  ctx.fillStyle = '#8b97ad';
+  for (let i = 0; i <= 4; i++) {
+    const y = pad.t + ch * i / 4;
+    ctx.beginPath();
+    ctx.moveTo(pad.l, y);
+    ctx.lineTo(w - pad.r, y);
+    ctx.stroke();
+    ctx.fillText(100 - i * 25, 8, y + 3);
+  }
+
+  if (chartType === 'line') {
+    // 折线
+    ctx.strokeStyle = '#22d3ee';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    chartData.forEach((v, i) => {
+      const x = pad.l + cw * i / (chartData.length - 1);
+      const y = pad.t + ch * (1 - v / 100);
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+    // 渐变填充
+    const grad = ctx.createLinearGradient(0, pad.t, 0, pad.t + ch);
+    grad.addColorStop(0, 'rgba(34,211,238,0.3)');
+    grad.addColorStop(1, 'rgba(34,211,238,0)');
+    ctx.fillStyle = grad;
+    ctx.lineTo(pad.l + cw, pad.t + ch);
+    ctx.lineTo(pad.l, pad.t + ch);
+    ctx.closePath();
+    ctx.fill();
+    // 数据点
+    ctx.fillStyle = '#22d3ee';
+    chartData.forEach((v, i) => {
+      const x = pad.l + cw * i / (chartData.length - 1);
+      const y = pad.t + ch * (1 - v / 100);
+      ctx.beginPath();
+      ctx.arc(x, y, 3, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    // X轴标签
+    ctx.fillStyle = '#8b97ad';
+    for (let i = 0; i < chartData.length; i += 2) {
+      const x = pad.l + cw * i / (chartData.length - 1);
+      ctx.fillText(`${i*2}:00`, x - 10, h - 8);
+    }
+  } else if (chartType === 'bar') {
+    const bw = cw / chartData.length * 0.6;
+    chartData.forEach((v, i) => {
+      const x = pad.l + cw * i / chartData.length + (cw/chartData.length - bw)/2;
+      const y = pad.t + ch * (1 - v / 100);
+      const bh = ch * v / 100;
+      const grad = ctx.createLinearGradient(0, y, 0, y + bh);
+      grad.addColorStop(0, '#22d3ee');
+      grad.addColorStop(1, '#0e7490');
+      ctx.fillStyle = grad;
+      ctx.fillRect(x, y, bw, bh);
+    });
+    ctx.fillStyle = '#8b97ad';
+    for (let i = 0; i < chartData.length; i += 2) {
+      const x = pad.l + cw * i / chartData.length;
+      ctx.fillText(`区域${i+1}`, x, h - 8);
+    }
+  } else if (chartType === 'pie') {
+    const cx = w / 2, cy = h / 2, r = Math.min(cw, ch) / 2 - 10;
+    const total = chartData.reduce((a, b) => a + b, 0);
+    let start = -Math.PI / 2;
+    const colors = ['#22d3ee', '#34d399', '#f59e0b', '#a78bfa', '#f87171', '#60a5fa'];
+    chartData.slice(0, 6).forEach((v, i) => {
+      const angle = (v / total) * Math.PI * 2;
+      ctx.fillStyle = colors[i % colors.length];
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.arc(cx, cy, r, start, start + angle);
+      ctx.closePath();
+      ctx.fill();
+      start += angle;
+    });
+    // 中心圆
+    ctx.fillStyle = '#0a0f1a';
+    ctx.beginPath();
+    ctx.arc(cx, cy, r * 0.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#e8eef7';
+    ctx.font = 'bold 16px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('100%', cx, cy + 6);
+    ctx.textAlign = 'start';
+  }
+}
+
+// ---------- 实时数字跳动 ----------
+let tickTimer = null;
+function startTicking() {
+  if (tickTimer) clearInterval(tickTimer);
+  tickTimer = setInterval(() => {
+    if (!liveGauges.length) return;
+    liveGauges = liveGauges.map(v => Math.max(5, Math.min(99, v + Math.round(Math.random() * 5 - 2))));
+    setTach(liveGauges.reduce((a, b) => a + b, 0) / liveGauges.length);
+    document.querySelectorAll('#bars .bar').forEach((el, i) => {
+      if (liveGauges[i] == null) return;
+      el.querySelector('.bar-fill').style.width = liveGauges[i] + '%';
+      el.querySelector('.bar-val').textContent = liveGauges[i] + '%';
+    });
+  }, 2800);
+}
+
+// ---------- 事件绑定 ----------
+document.querySelectorAll('.scene-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.scene-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentScene = btn.dataset.scene;
+    renderAll();
+    if (window.Buzz) Buzz.say('已切换：' + SCENES[currentScene].name);
+  });
+});
+
+document.getElementById('styleSelect').addEventListener('change', e => {
+  currentStyle = e.target.value;
+  renderInsight();
+});
+
+document.getElementById('regenBtn').addEventListener('click', renderInsight);
+
+document.getElementById('refreshBtn').addEventListener('click', () => {
+  genChartData();
+  drawChart();
+  renderMetrics();
+  renderGauges();
+  renderStatus();
+  renderInsight();
+});
+
+document.getElementById('fullscreenBtn').addEventListener('click', () => {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen();
+  } else {
+    document.exitFullscreen();
+  }
+});
+
+document.querySelectorAll('.chart-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.chart-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    chartType = tab.dataset.chart;
+    drawChart();
+  });
+});
+
+window.addEventListener('resize', drawChart);
+
+// ---------- 初始化 ----------
+function renderAll() {
+  renderMetrics();
+  renderGauges();
+  renderStatus();
+  renderLog();
+  genChartData();
+  drawChart();
+  renderInsight();
+}
+
+buildTach();
+renderAll();
+startTicking();
+</script>
+</body>
+</html>
