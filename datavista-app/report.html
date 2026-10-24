@@ -701,6 +701,14 @@ function parseNum(str) {
 }
 
 // 严格判断单元格是否为数值（允许：纯数字、千分位、%结尾、万/亿结尾；不允许"1月""3:24"等）
+// 坐标轴大数简写：12000 → 1.2万，120000000 → 1.2亿
+function fmtAxis(v) {
+  const a = Math.abs(v);
+  if (a >= 1e8) return (v / 1e8).toFixed(a >= 1e9 ? 0 : 1) + '亿';
+  if (a >= 1e4) return (v / 1e4).toFixed(a >= 1e6 ? 0 : 1) + '万';
+  return String(v);
+}
+
 function isNumericCell(str) {
   if (str === undefined || str === null) return false;
   let s = String(str).trim();
@@ -937,10 +945,10 @@ function renderCharts() {
     xAxis: { type: 'category', data: categories, axisLabel: { color: '#8b97ad', rotate: categories.length > 8 ? 30 : 0 } },
     yAxis: c1HasRight
       ? [
-          { type: 'value', name: chart1Cols[0], nameTextStyle: { color: '#22d3ee', fontSize: 10 }, axisLabel: { color: '#8b97ad' }, splitLine: { lineStyle: { color: '#1f2a3d' } } },
+          { type: 'value', axisLabel: { color: '#8b97ad', formatter: fmtAxis }, splitLine: { lineStyle: { color: '#1f2a3d' } } },
           { type: 'value', name: chart1Cols[1], nameTextStyle: { color: '#f59e0b', fontSize: 10 }, axisLabel: { color: '#f59e0b', formatter: c1RightIsPct ? '{value}%' : '{value}' }, splitLine: { show: false } },
         ]
-      : { type: 'value', axisLabel: { color: '#8b97ad' }, splitLine: { lineStyle: { color: '#1f2a3d' } } },
+      : { type: 'value', axisLabel: { color: '#8b97ad', formatter: fmtAxis }, splitLine: { lineStyle: { color: '#1f2a3d' } } },
     series: chart1Cols.map((col, i) => ({
       name: col,
       type: i === 0 ? 'bar' : (c1HasRight ? 'line' : 'line'),
@@ -999,10 +1007,10 @@ function renderCharts() {
       xAxis: { type: 'category', data: categories, axisLabel: { color: '#8b97ad' } },
       yAxis: c3HasRight
         ? [
-            { type: 'value', axisLabel: { color: '#8b97ad' }, splitLine: { lineStyle: { color: '#1f2a3d' } } },
+            { type: 'value', axisLabel: { color: '#8b97ad', formatter: fmtAxis }, splitLine: { lineStyle: { color: '#1f2a3d' } } },
             { type: 'value', axisLabel: { color: '#f59e0b', formatter: c3AllRightPct ? '{value}%' : '{value}' }, splitLine: { show: false } },
           ]
-        : { type: 'value', axisLabel: { color: '#8b97ad' }, splitLine: { lineStyle: { color: '#1f2a3d' } } },
+        : { type: 'value', axisLabel: { color: '#8b97ad', formatter: fmtAxis }, splitLine: { lineStyle: { color: '#1f2a3d' } } },
       series: numCols.map(col => {
         const isRatio = c3RightCols.includes(col);
         return {
